@@ -1,0 +1,157 @@
+/* Tokku Kit CSS skeleton (KakaoTalk iOS theme guide 26.8.0). Colors are sample values; scripts/gen-spec.mjs maps them to palette tokens. */
+
+ManifestStyle
+{
+    -kakaotalk-theme-name: 'My Theme';
+    -kakaotalk-theme-version: '26.8.0';
+    -kakaotalk-theme-url: 'https://tokku-kit.vercel.app';
+    -kakaotalk-author-name: 'Tokku Kit';
+    -kakaotalk-theme-id: 'com.kakao.talk.theme.tokku000000000000';
+
+}
+
+TabBarStyle-Main
+{
+    background-color: #FFF0F5;
+    -ios-background-image: 'maintabBgImage.png';
+    -ios-friends-normal-icon-image: 'maintabIcoFriends.png';
+    -ios-friends-selected-icon-image: 'maintabIcoFriendsSelected.png';
+    -ios-chats-normal-icon-image: 'maintabIcoChats.png';
+    -ios-chats-selected-icon-image: 'maintabIcoChatsSelected.png';
+    -ios-now-normal-icon-image: 'maintabIcoNow.png';
+    -ios-now-selected-icon-image: 'maintabIcoNowSelected.png';
+    -ios-local-normal-icon-image: 'maintabIcoLocal.png';
+    -ios-local-selected-icon-image: 'maintabIcoLocalSelected.png';
+    -ios-piccoma-normal-icon-image: 'maintabIcoPiccoma.png';
+    -ios-piccoma-selected-icon-image: 'maintabIcoPiccomaSelected.png';
+    -ios-shopping-normal-icon-image: 'maintabIcoShopping.png';
+    -ios-shopping-selected-icon-image: 'maintabIcoShoppingSelected.png';
+    -ios-call-normal-icon-image: 'maintabIcoCall.png';
+    -ios-call-selected-icon-image: 'maintabIcoCallSelected.png';
+    -ios-more-normal-icon-image: 'maintabIcoMore.png';
+    -ios-more-selected-icon-image: 'maintabIcoMoreSelected.png';
+    -ios-openchats-normal-icon-image: 'maintabIcoNow.png';
+    -ios-openchats-selected-icon-image: 'maintabIcoNowSelected.png';
+}
+
+HeaderStyle-Main
+{
+    -ios-text-color: #4A3440;
+    -ios-tab-text-color: #8A6878;
+    -ios-tab-highlighted-text-color: #4A3440;
+}
+
+MainViewStyle-Primary
+{
+    background-color: #FFF6EE;
+    -ios-background-image: 'mainBgImage.png';
+    -ios-text-color: #4A3440;
+    -ios-highlighted-text-color: #8C6878;
+    -ios-description-text-color: #76566A;
+    -ios-description-highlighted-text-color: #8C6878;
+    -ios-paragraph-text-color: #76566A;
+    -ios-paragraph-highlighted-text-color: #8C6878;
+    -ios-normal-background-color: #FFF6EE;
+    -ios-normal-background-alpha: 0.0;
+    -ios-selected-background-color: #B23A64;
+    -ios-selected-background-alpha: 0.06;
+}
+
+MainViewStyle-Secondary { background-color: #FFF6EE; }
+
+SectionTitleStyle-Main
+{
+    border-color: #E8789A;
+    border-alpha: 0.2;
+    -ios-text-color: #B23A64;
+    -ios-text-alpha: 1.0;
+}
+
+FeatureStyle-Primary { -ios-text-color: #76566A; }
+
+ButtonStyle-Main
+{
+    background-color: #F6E1E9;
+    -ios-highlighted-background-color: #EBCAD7;
+    -ios-selected-background-color: #4A3440;
+}
+
+ButtonStyle-AddFriend { -ios-image: 'findBtnAddFriend.png'; }
+
+DefaultProfileStyle { -ios-profile-images: 'profileImg01.png'; }
+
+BackgroundStyle-ChatRoom
+{
+    background-color: #FFF6EE;
+    -ios-background-image: 'chatroomBgImage.png';
+}
+
+InputBarStyle-Chat
+{
+    background-color: #FFFFFF;
+    -ios-send-normal-background-color: #B23A64;
+    -ios-send-normal-foreground-color: #FFFFFF;
+    -ios-send-highlighted-background-color: #8F2D50;
+    -ios-send-highlighted-foreground-color: #FFE3EC;
+    -ios-button-normal-foreground-color: #B23A64;
+    -ios-button-highlighted-foreground-color: #8F2D50;
+    -ios-button-text-color: #3A2A33;
+    -ios-button-normal-background-color: #B23A64;
+    -ios-button-normal-background-alpha: 0.06;
+}
+
+MessageCellStyle-Send
+{
+    -ios-background-image: 'chatroomBubbleSend01.png' 17px 17px;
+    -ios-selected-background-image: 'chatroomBubbleSend01Selected.png' 17px 17px;
+    -ios-group-background-image: 'chatroomBubbleSend02.png' 17px 17px;
+    -ios-group-selected-background-image: 'chatroomBubbleSend02Selected.png' 17px 17px;
+    -ios-title-edgeinsets: 10px 11px 7px 17px;
+    -ios-group-title-edgeinsets: 10px 11px 7px 17px;
+    -ios-text-color: #4A3440;
+    -ios-selected-text-color: #4A3440;
+    -ios-unread-text-color: #B23A64;
+}
+
+MessageCellStyle-Receive
+{
+    -ios-background-image: 'chatroomBubbleReceive01.png' 22px 17px;
+    -ios-selected-background-image: 'chatroomBubbleReceive01Selected.png' 22px 17px;
+    -ios-group-background-image: 'chatroomBubbleReceive02.png' 22px 17px;
+    -ios-group-selected-background-image: 'chatroomBubbleReceive02Selected.png' 22px 17px;
+    -ios-title-edgeinsets: 10px 17px 7px 11px;
+    -ios-group-title-edgeinsets: 10px 17px 7px 11px;
+    -ios-text-color: #4A3440;
+    -ios-selected-text-color: #4A3440;
+    -ios-unread-text-color: #B23A64;
+}
+
+BackgroundStyle-Passcode
+{
+    background-color: #FFF6EE;
+    -ios-background-image: 'passcodeBgImage.png';
+}
+LabelStyle-PasscodeTitle { -ios-text-color: #4A3440; }
+PasscodeStyle
+{
+    -ios-bullet-first-image: 'passcodeImgCode01.png';
+    -ios-bullet-second-image: 'passcodeImgCode02.png';
+    -ios-bullet-third-image: 'passcodeImgCode03.png';
+    -ios-bullet-fourth-image: 'passcodeImgCode04.png';
+    -ios-bullet-selected-first-image: 'passcodeImgCode01Selected.png';
+    -ios-bullet-selected-second-image: 'passcodeImgCode02Selected.png';
+    -ios-bullet-selected-third-image: 'passcodeImgCode03Selected.png';
+    -ios-bullet-selected-fourth-image: 'passcodeImgCode04Selected.png';
+    -ios-keypad-background-color: #FFEFF4;
+    -ios-keypad-text-normal-color: #4A3440;
+    -ios-keypad-number-highlighted-image : 'passcodeKeypadPressed.png';
+}
+
+BackgroundStyle-MessageNotificationBar { background-color: #F7C9DA; }
+LabelStyle-MessageNotificationBarName { -ios-text-color: #4A3440; }
+LabelStyle-MessageNotificationBarMessage { -ios-text-color: #6B4A5A; }
+BackgroundStyle-DirectShareBar { background-color: #FFFFFF; }
+LabelStyle-DirectShareBarName { -ios-text-color: #B23A64; }
+LabelStyle-DirectShareBarMessage { -ios-text-color: #7A5A68; }
+BottomBannerStyle { background-color: #4A3440; }
+BottomBannerStyle-Light { background-color: #4A3440; }

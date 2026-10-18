@@ -1,0 +1,582 @@
+// 캔버스 렌더링과 테마 빌드. 브라우저 전용 (캔버스는 makeCanvas 한 곳에서만 만든다).
+import { IMAGES } from './spec.js';
+import { DEFAULTS, PRESETS, LAYOUTS, GRIDS, BG, PERCH_CROP, PEEK_CROP, CHAR_SIZES, SHAPES, OUTLINES, OUTLINE_COLORS, DECOS, FILL_TONES, PATTERN_SIZES, bubbleSpec, charBox, resolveBackground, patternLayers, cornerBox } from './presets.js';
+import { derive, shiftL, oklch, rgbToOklch, rgb, lumRgb, contrast } from './palette.js';
+import { pixelize, fitSprite, binarizeScale, centerCropX } from './pixelize.js';
+import { crop, cropToAlpha } from './keying.js';
+import { bubbleImage, layerChar } from './bubble.js';
+import { buildCss, themeId, themeName } from './css.js';
+import { packTheme } from './pack.js';
+
+// ---------- 캔버스 ----------
+export function makeCanvas(w, h) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+const ctxOf = (c, pixel = false) => {
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.imageSmoothingEnabled = !pixel;
+  if (!pixel) x.imageSmoothingQuality = 'high';
+  return x;
+};
+const release = c => { c.width = 0; c.height = 0; };
+
+export async function canvasToBlob(c) {
+  const b = c.convertToBlob ? await c.convertToBlob({ type: 'image/png' }) : await new Promise(r => c.toBlob(r, 'image/png'));
+  release(c); // iOS 메모리: 큰 캔버스는 바로 해제
+  return b;
+}
+
+/** Img -> 캔버스 */
+export function imgCanvas(img) {
+  const c = makeCanvas(img.width, img.height);
+  ctxOf(c).putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
+  return c;
+}
+
+/** 캔버스 -> Img */
+export function canvasImg(c) {
+  const d = ctxOf(c).getImageData(0, 0, c.width, c.height);
+  return { width: d.width, height: d.height, data: d.data };
+}
+
+/** 이미지 파일(Blob/File) -> Img (UI 용) */
+export async function decodeImage(blob) {
+  const bmp = await createImageBitmap(blob);
+  const c = makeCanvas(bmp.width, bmp.height);
+  ctxOf(c).drawImage(bmp, 0, 0);
+  bmp.close && bmp.close();
+  const img = canvasImg(c);
+  release(c);
+  return img;
+}
+
+/** Img -> PNG Blob */
+export const imgToBlob = img => canvasToBlob(imgCanvas(img));
+
+// 큰 축소는 반씩 단계적으로 (한 번에 줄이면 계단·모아레)
+function drawScaled(ctx, src, dx, dy, dw, dh) {
+  let cur = src, w = src.width, h = src.height;
+  const tmp = [];
+  while (w / 2 >= dw && h / 2 >= dh && w > 2 && h > 2) {
+    const c = makeCanvas(Math.ceil(w / 2), Math.ceil(h / 2));
+    ctxOf(c).drawImage(cur, 0, 0, w, h, 0, 0, c.width, c.height);
+    tmp.push(c); cur = c; w = c.width; h = c.height;
+  }
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(cur, 0, 0, w, h, dx, dy, dw, dh);
+  tmp.forEach(release);
+}
+
+// ---------- 캐릭터 ----------
+// 한 캐릭터(또는 slot 그림)의 그림 변형: full(원본), perch(올라앉기용 가로 크롭), peek(위 65%). 처음 쓸 때 만든다.
+// pixel 이면 각각 스프라이트. asSprite = 이미 픽셀 스프라이트라 재격자화 없이 그대로 (opts.slotsArePixel)
+function makeChar(img, pixel, grid, asSprite = false) { return { img, pixel, grid, asSprite, variants: {} }; }
+function variant(ch, key) {
+  if (ch.variants[key]) return ch.variants[key];
+  const { img, pixel, grid, asSprite } = ch, sp = im => ({ sprite: asSprite ? im : pixelize(im, grid) });
+  let v;
+  if (key === 'full') v = pixel ? sp(img) : { img };
+  else if (key === 'perch') {
+    const src = img.width / img.height > 40 / 26 ? centerCropX(img, Math.max(PERCH_CROP, (40 / 26) * img.height / img.width)) : img;
+    v = pixel ? sp(src) : { img: src };
+  } else if (key === 'peek') {
+    if (pixel) { const f = variant(ch, 'full').sprite; v = { sprite: crop(f, 0, 0, f.width, Math.max(1, Math.round(f.height * PEEK_CROP))) }; }
+    else v = { img: crop(img, 0, 0, img.width, Math.max(1, Math.round(img.height * PEEK_CROP))) };
+  } else throw new Error(`unknown variant ${key}`);
+  return (ch.variants[key] = v);
+}
+function freeChar(ch) { for (const v of Object.values(ch.variants)) if (v.canvas) release(v.canvas); }
+
+/**
+ * 캐릭터를 상자 (x,y,w,h px, @k) 에 비율 유지로. align: 'center' | 'bottom' | 'top'.
+ * 픽셀은 fitSprite 정수배 nearest, 위치도 pt 정수라 @2x/@3x 격자가 같다.
+ */
+function drawChar(ctx, ch, key, box, k, { align = 'center', alpha = 1, pad = 0 } = {}) {
+  const v = variant(ch, key);
+  const px = box.w * pad / 2, py = box.h * pad / 2;
+  const bw = box.w - px * 2, bh = box.h - py * 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (ch.pixel) {
+    const sp = fitSprite(v.sprite, bw / k, bh / k, k, !ch.asSprite);
+    const ox = Math.floor((bw / k - sp.width / k) / 2), oy = align === 'top' ? 0 : align === 'bottom' ? Math.floor(bh / k - sp.height / k) : Math.floor((bh / k - sp.height / k) / 2);
+    const c = imgCanvas(sp);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(c, Math.round(box.x + px) + ox * k, Math.round(box.y + py) + oy * k);
+    release(c);
+  } else {
+    const im = v.img;
+    if (!v.canvas) v.canvas = imgCanvas(im);
+    const s = Math.min(bw / im.width, bh / im.height);
+    const dw = im.width * s, dh = im.height * s;
+    const dx = box.x + px + (bw - dw) / 2, dy = box.y + py + (align === 'top' ? 0 : align === 'bottom' ? bh - dh : (bh - dh) / 2);
+    drawScaled(ctx, v.canvas, dx, dy, dw, dh);
+  }
+  ctx.restore();
+}
+
+// ---------- 코드 도형 ----------
+function rr(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function star(ctx, cx, cy, r) {
+  ctx.moveTo(cx, cy - r);
+  ctx.quadraticCurveTo(cx, cy, cx + r, cy); ctx.quadraticCurveTo(cx, cy, cx, cy + r);
+  ctx.quadraticCurveTo(cx, cy, cx - r, cy); ctx.quadraticCurveTo(cx, cy, cx, cy - r);
+  ctx.closePath();
+}
+
+/** 탭 라인 아이콘 (38pt 상자 좌표). mode 'stroke' = 비선택, 'fill' = 배지 */
+function drawIcon(ctx, kind, mode, color, lw = 2.2) {
+  ctx.save();
+  ctx.strokeStyle = ctx.fillStyle = color;
+  ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const paint = () => (mode === 'fill' ? ctx.fill() : ctx.stroke());
+  const dots = (pts, r) => { ctx.beginPath(); for (const [x, y] of pts) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); } ctx.fill(); };
+  ctx.beginPath();
+  if (kind === 'friends') { // 사람
+    ctx.moveTo(24.5, 12.5); ctx.arc(19, 12.5, 5.5, 0, Math.PI * 2);
+    ctx.moveTo(8.5, 31); ctx.bezierCurveTo(8.5, 23.5, 13, 20.5, 19, 20.5); ctx.bezierCurveTo(25, 20.5, 29.5, 23.5, 29.5, 31); ctx.closePath();
+    paint();
+  } else if (kind === 'chats') { // 말풍선 (몸통+꼬리 한 윤곽)
+    ctx.ellipse(19, 17, 13, 9.5, 0, 2.45, 1.95 + Math.PI * 2);
+    ctx.lineTo(8, 31); ctx.closePath();
+    paint();
+    if (mode === 'stroke') dots([[13.5, 17], [19, 17], [24.5, 17]], 1.6);
+  } else if (kind === 'now') { // 반짝이
+    star(ctx, 17, 20, 11); star(ctx, 29, 9, 4.5);
+    paint();
+  } else if (kind === 'shopping') { // 쇼핑백
+    rr(ctx, 9, 14, 20, 18, 3); paint();
+    ctx.beginPath(); ctx.arc(19, 14, 5, Math.PI, 0); ctx.stroke();
+  } else if (kind === 'call') { // 전화기
+    rr(ctx, 11.5, 5, 15, 28, 4); paint();
+    if (mode === 'stroke') { ctx.beginPath(); ctx.moveTo(16.5, 9.5); ctx.lineTo(21.5, 9.5); ctx.stroke(); dots([[19, 28.5]], 1.4); }
+  } else if (kind === 'more') { // 점 3개
+    dots([[10, 19], [19, 19], [28, 19]], 2.8);
+  }
+  ctx.restore();
+}
+
+/**
+ * 코드 도형 캔버스 (w x h pt, @k). 픽셀 모드면 1pt=1px 로 그린 뒤 알파 이진화 + nearest k배 (기준 구현 chrome).
+ * draw(ctx) 는 pt 좌표로 그린다.
+ */
+function chrome(wPt, hPt, k, pixel, draw) {
+  if (!pixel) {
+    const c = makeCanvas(Math.round(wPt * k), Math.round(hPt * k));
+    const ctx = ctxOf(c); ctx.scale(k, k); draw(ctx);
+    return c;
+  }
+  const small = makeCanvas(wPt, hPt);
+  draw(ctxOf(small));
+  const img = binarizeScale(canvasImg(small), k);
+  release(small);
+  return imgCanvas(img);
+}
+
+// 배경 무늬 (px 좌표). layers = patternLayers(bg) [[무늬, 투명도]], f = 크기 배율. skip = 구석 그림 자리 {x,y,w,h}
+// (흩뿌린 무늬만 비움. 체크·격자는 끊기면 어색해서 그대로). m·기본 투명도 = 예전 프리셋 그림과 픽셀까지 같다.
+// pc = background.patternColors (dots·cubes·hearts 가 돌려 씀, null = 팔레트)
+function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null) {
+  if (!layers.length) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x0, y0, x1 - x0, y1 - y0);
+  if (skip && layers.every(([k]) => k !== 'check' && k !== 'grid')) ctx.rect(skip.x - 20, skip.y - 20, skip.w + 40, skip.h + 40);
+  ctx.clip('evenodd');
+  const scatter = (step, draw) => { // 엇갈린 행으로 흩뿌리기
+    let i = 0;
+    for (let row = 0, y = y0 + step / 2; y < y1; y += step, row++) {
+      for (let x = (row % 2 ? step / 2 : 0) + step / 4; x < x1; x += step) draw(x, y, i++);
+    }
+  };
+  for (const [kind, alpha] of layers) {
+    ctx.globalAlpha = alpha;
+    if (kind === 'dots') { // 작은 둥근 사각 도트 3색 엇갈림
+      const cols = pc || [pal.accent, pal.sendLine, pal.line], s = 12 * f;
+      scatter(130 * f, (x, y, i) => { ctx.fillStyle = cols[i % cols.length]; ctx.beginPath(); rr(ctx, x - s, y - s, s * 2, s * 2, 6 * f); ctx.fill(); });
+    } else if (kind === 'cubes') { // 3색 둥근 사각 (기본 = accent 색상환 3등분 L .74, 크기·간격은 도트와 같음)
+      const [, C, H] = rgbToOklch(rgb(pal.accent)), cols = pc || [0, 120, 240].map(d => oklch(0.74, Math.max(C, 0.12), (H + d) % 360)), s = 12 * f;
+      scatter(130 * f, (x, y, i) => { ctx.fillStyle = cols[i % cols.length]; ctx.beginPath(); rr(ctx, x - s, y - s, s * 2, s * 2, 6 * f); ctx.fill(); });
+    } else if (kind === 'hearts') { // 작은 하트, accent / sendLine 번갈아
+      const cols = pc || [pal.accent, pal.sendLine], s = 14 * f;
+      scatter(140 * f, (x, y, i) => {
+        ctx.fillStyle = cols[i % cols.length]; ctx.beginPath();
+        ctx.moveTo(x, y + s * 0.9);
+        ctx.bezierCurveTo(x - s * 1.6, y - s * 0.1, x - s * 0.6, y - s * 1.2, x, y - s * 0.35);
+        ctx.bezierCurveTo(x + s * 0.6, y - s * 1.2, x + s * 1.6, y - s * 0.1, x, y + s * 0.9);
+        ctx.closePath(); ctx.fill();
+      });
+    } else if (kind === 'check') { // 연한 깅엄 체크
+      ctx.fillStyle = pal.sendFill;
+      const p = 120 * f, w = 60 * f;
+      for (let x = 0; x < x1; x += p) ctx.fillRect(x, y0, w, y1 - y0);
+      for (let y = y0; y < y1; y += p) ctx.fillRect(x0, y, x1 - x0, w);
+    } else if (kind === 'grid') { // 픽셀 격자 선
+      const step = 48 * f, lw = 3 * f;
+      ctx.fillStyle = pal.line;
+      for (let x = 0; x < x1; x += step) ctx.fillRect(x, y0, lw, y1 - y0);
+      for (let y = y0; y < y1; y += step) ctx.fillRect(x0, y, x1 - x0, lw);
+    } else if (kind === 'stars') { // 도트 별 (십자 5칸)
+      const step = 48 * f, c = 6 * f;
+      ctx.fillStyle = pal.accent;
+      for (let row = 0, y = y0 + step * 2; y < y1; y += step * 4, row++) {
+        for (let x = (row % 2 ? step * 2 : 0) + step * 2; x < x1; x += step * 4) {
+          for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.fillRect(x + dx * c - c / 2 + c / 4, y + dy * c - c / 2 + c / 4, c, c);
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
+
+/**
+ * 사진 배경: fit(cover|contain) 로 깔고, blur(pt) 는 축소 후 확대로, dim 은 배경색으로 덮어 글자 대비를 살린다
+ * (글자가 진한 색이라 밝게 덮는다). auto 면 글자 자리 [y0,y1) 의 대비가 모자랄 때 dim 을 올린다 (autoDim). -> 실제 dim.
+ * ponytail: ctx.filter 는 iOS 사파리 캔버스에서 안 돼서 축소-확대 블러. 더 고와야 하면 박스 블러 3회.
+ */
+function drawPhoto(ctx, img, W, H, { fit, blur, dim, auto }, color, pal, y0, y1) {
+  const s = fit === 'cover' ? Math.max(W / img.width, H / img.height) : Math.min(W / img.width, H / img.height);
+  const dw = img.width * s, dh = img.height * s, dx = (W - dw) / 2, dy = (H - dh) / 2;
+  const src = imgCanvas(img);
+  if (blur > 0) {
+    const q = 1 + blur * 1.5, sw = Math.max(1, Math.round(W / q)), sh = Math.max(1, Math.round(H / q));
+    const small = makeCanvas(sw, sh), sctx = ctxOf(small);
+    sctx.fillStyle = color; sctx.fillRect(0, 0, sw, sh);
+    drawScaled(sctx, src, dx / q, dy / q, dw / q, dh / q);
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(small, 0, 0, sw, sh, 0, 0, W, H); ctx.restore();
+    release(small);
+  } else { ctx.save(); drawScaled(ctx, src, dx, dy, dw, dh); ctx.restore(); }
+  release(src);
+  if (auto) dim = autoDim(ctx, W, y0, y1, dim, color, pal);
+  if (dim > 0) { ctx.save(); ctx.globalAlpha = dim; ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  return dim;
+}
+
+export const AUTO_DIM_MAX = 0.85;
+/**
+ * 글자 대비 자동 보정: 글자 자리 [y0,y1) 를 48x96 으로 줄여 읽고, 배경색을 d 만큼 덮었을 때 칸의 90% 이상에서
+ * text 4.5:1·muted 3:1 이 되는 가장 작은 d (사용자 dim 이상, 0.05 단위, 최대 AUTO_DIM_MAX). 배경색 자체가 어두우면 못 올리니 그대로 최대.
+ * ponytail: 축소 평균이라 가는 무늬는 묻힌다. 더 엄격해야 하면 칸별 최솟값으로.
+ */
+function autoDim(ctx, W, y0, y1, dim, color, pal) {
+  const sm = makeCanvas(48, 96), sx = ctxOf(sm);
+  sx.drawImage(ctx.canvas, 0, y0, W, y1 - y0, 0, 0, 48, 96);
+  const d = sx.getImageData(0, 0, 48, 96).data; release(sm);
+  const bg = rgb(color), lt = lumRgb(rgb(pal.text)), lm = lumRgb(rgb(pal.muted));
+  const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  const ok = t => {
+    let good = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const L = lumRgb([0, 1, 2].map(j => d[i + j] * (1 - t) + bg[j] * t));
+      if (ratio(L, lt) >= 4.5 && ratio(L, lm) >= 3) good++;
+    }
+    return good >= 0.9 * d.length / 4;
+  };
+  for (let t = dim; t < AUTO_DIM_MAX + 1e-9; t = Math.round((t + 0.05) * 100) / 100) if (ok(t)) return t;
+  return Math.max(dim, AUTO_DIM_MAX);
+}
+
+// ---------- 빌드 ----------
+const TABS = [['friends', 'Friends'], ['chats', 'Chats'], ['now', 'Now'], ['shopping', 'Shopping'], ['call', 'Call'], ['more', 'More']];
+const TAB_KEYS = TABS.map(t => t[0]);
+const SIZE = Object.fromEntries(IMAGES.map(i => [i.name, i]));
+
+export function normalizeOptions(opts = {}) {
+  const o = { ...DEFAULTS, ...opts };
+  if (!PRESETS[o.preset]) throw new Error(`unknown preset ${o.preset}`);
+  if (!LAYOUTS.includes(o.layout)) throw new Error(`unknown layout ${o.layout}`);
+  for (const [k, ok] of [['charSize', CHAR_SIZES], ['bubbleShape', SHAPES], ['outline', Object.keys(OUTLINES)],
+    ['outlineColor', OUTLINE_COLORS], ['deco', DECOS], ['fillTone', Object.keys(FILL_TONES)]]) {
+    if (!ok.includes(o[k])) throw new Error(`unknown ${k} ${o[k]}`);
+  }
+  if (!GRIDS.includes(Number(o.grid))) throw new Error(`grid must be 32|48|64`);
+  o.grid = Number(o.grid);
+  o.slotsArePixel = !!o.slotsArePixel;
+  // 서기: 받은 말풍선 친구 캐릭터가 채팅방 왼쪽 아래에 서므로 채팅방 구석 그림 기본값은 오른쪽 아래 (안 겹치게)
+  const ob = o.background || {};
+  o.background = resolveBackground(o.preset, o.layout === 'stand' && !(ob.corner && ob.corner.chat) ? { ...ob, corner: { ...ob.corner, chat: 'br' } } : o.background);
+  themeId(o.id, false); // 형식 검사
+  return o;
+}
+
+/** 면 성향 (템플릿): white/cream 이면 보낸·받은 말풍선 면을 그 색으로 (사용자 색보다 우선) */
+export function applyFillTone(pal, tone) {
+  const f = FILL_TONES[tone];
+  if (!f) return pal;
+  const sel = shiftL(f, -0.06);
+  return { ...pal, sendFill: f, sendSel: sel, recvFill: f, recvSel: sel };
+}
+
+// 레이아웃별 캐릭터 그림 변형: 올라앉기·걸치기 = 가로 크롭, 빼꼼 = 위 65%, 서기 = 전신
+const VARIANT = { perch: 'perch', hang: 'perch', peek: 'peek', stand: 'full' };
+
+const isImg = v => v && v.width > 0 && v.height > 0 && v.data && v.data.length === v.width * v.height * 4;
+/**
+ * assets 검사 (SPEC 2절). 모르는 이름·깨진 그림은 바로 오류 (오타가 조용히 무시되지 않게). 빈 자리(null/undefined)는 기본 그림.
+ * recvBubble = 내부용 (buildCouple 상대 폰: 받은 쪽 말풍선 그림)
+ */
+export function checkAssets(assets) {
+  const a = assets || {};
+  const img = (v, what) => { if (v != null && !isImg(v)) throw new Error(`asset ${what}: not an Img {width,height,data}`); return v || null; };
+  const map = (v, keys, what) => {
+    v = v || {};
+    for (const k of Object.keys(v)) if (!keys.includes(k)) throw new Error(`unknown ${what} slot ${k}`);
+    return Object.fromEntries(keys.map(k => [k, img(v[k], `${what}.${k}`)]));
+  };
+  for (const k of Object.keys(a)) if (!['bgMain', 'bgChat', 'bgPasscode', 'slots', 'recvBubble'].includes(k)) throw new Error(`unknown asset ${k}`);
+  const s = a.slots || {};
+  const SLOT_KEYS = ['profile', 'icon', 'tabSelected', 'tabNormal', 'passcodeSelected', 'passcodeArt', 'cornerMain', 'cornerChat', 'bubble'];
+  for (const k of Object.keys(s)) if (!SLOT_KEYS.includes(k)) throw new Error(`unknown slot ${k}`);
+  const ps = s.passcodeSelected == null ? [] : s.passcodeSelected;
+  if (!Array.isArray(ps) || ps.length > 4) throw new Error('slot passcodeSelected must be [s1, s2, s3, s4]');
+  const BL = LAYOUTS.filter(l => l !== 'none');
+  return {
+    bgMain: img(a.bgMain, 'bgMain'), bgChat: img(a.bgChat, 'bgChat'), bgPasscode: img(a.bgPasscode, 'bgPasscode'),
+    recvBubble: map(a.recvBubble, BL, 'recvBubble'),
+    slots: {
+      profile: img(s.profile, 'profile'), icon: img(s.icon, 'icon'),
+      tabSelected: map(s.tabSelected, TAB_KEYS, 'tabSelected'), tabNormal: map(s.tabNormal, TAB_KEYS, 'tabNormal'),
+      passcodeSelected: [0, 1, 2, 3].map(i => img(ps[i], `passcodeSelected[${i}]`)),
+      passcodeArt: img(s.passcodeArt, 'passcodeArt'), cornerMain: img(s.cornerMain, 'cornerMain'), cornerChat: img(s.cornerChat, 'cornerChat'),
+      bubble: map(s.bubble, BL, 'bubble'),
+    },
+  };
+}
+
+/**
+ * 테마 1개: { files: Map<path, Blob>, css, meta }. charA = 보낸 쪽(내) 캐릭터, charB = 받은 쪽 (없으면 A).
+ * assets (선택) = 배경 사진 + slot 그림 (SPEC 2절). slot 이 빈 자리는 예전 그대로 캐릭터로 그린다.
+ */
+export async function buildTheme(charA, charB, opts, assets) {
+  const o = normalizeOptions(opts);
+  const as = checkAssets(assets), sl = as.slots, bgo = o.background;
+  const pal = applyFillTone(o.colors ? { ...derive(charA), ...o.colors } : derive(charA), o.fillTone);
+  pal.profileBg = pal.profileBg || shiftL(pal.bg, -0.035);
+  const bgColor = bgo.color || pal.bg;
+  // 배경 결과 보고 (UI 안내용): 실제 dim (자동 보정 후), 경고 'text-on-bg' = 고른 배경색 위 글자 대비 4.5 미만
+  const bgMeta = { dim: {}, warnings: [] };
+  if (bgo.color && contrast(bgColor, pal.text) < 4.5) bgMeta.warnings.push('text-on-bg');
+  const A = makeChar(charA, o.pixelChar, o.grid);
+  const B = charB ? makeChar(charB, o.pixelChar, o.grid) : A;
+  // slot 그림: 알파 bbox 로 자른 뒤 캐릭터와 같은 경로 (pixelChar 면 pixelize, slotsArePixel 이면 그대로 정수배)
+  const arts = [];
+  const art = im => {
+    if (!im) return null;
+    const ch = makeChar(cropToAlpha(im), o.pixelChar || o.slotsArePixel, o.grid, o.slotsArePixel);
+    arts.push(ch);
+    return ch;
+  };
+  const files = new Map();
+  const images = new Map();
+  const save = async (name, c) => {
+    const s = SIZE[name];
+    if (!s) throw new Error(`not in spec: ${name}`);
+    if (!name.startsWith('chatroomBubble') && (c.width !== s.w || c.height !== s.h)) throw new Error(`size ${name}: ${c.width}x${c.height} != ${s.w}x${s.h}`);
+    images.set(name, await canvasToBlob(c));
+  };
+
+  try {
+    // 테마 아이콘 162: 꽉 채운 사각 (모서리 굽히지 않음)
+    {
+      const c = makeCanvas(162, 162), ctx = ctxOf(c, o.pixelChar);
+      ctx.fillStyle = pal.bg; ctx.fillRect(0, 0, 162, 162);
+      drawChar(ctx, art(sl.icon) || A, 'full', { x: 6, y: 8, w: 150, h: 150 }, 1);
+      await save('commonIcoTheme.png', c);
+    }
+    const tabSel = Object.fromEntries(TAB_KEYS.map(t => [t, art(sl.tabSelected[t])]));
+    const tabNor = Object.fromEntries(TAB_KEYS.map(t => [t, art(sl.tabNormal[t])]));
+    const bubSend = art(sl.bubble[o.layout]);
+    const bubRecv = charB ? art(as.recvBubble[o.layout]) : bubSend;
+    for (const k of [2, 3]) {
+      // 탭 바 배경 + 위 1pt 헤어라인
+      {
+        const s = SIZE[`maintabBgImage@${k}x.png`], c = makeCanvas(s.w, s.h), ctx = ctxOf(c);
+        ctx.fillStyle = pal.tabBg; ctx.fillRect(0, 0, s.w, s.h);
+        ctx.globalAlpha = 0.5; ctx.fillStyle = pal.line; ctx.fillRect(0, 0, s.w, k);
+        await save(`maintabBgImage@${k}x.png`, c);
+      }
+      const tabArt = ch => { // slot 그림 하나를 38pt 탭 칸에 (배지 없음)
+        const c = makeCanvas(38 * k, 38 * k);
+        drawChar(ctxOf(c, ch.pixel), ch, 'full', { x: 0, y: 0, w: 38 * k, h: 38 * k }, k, { pad: ch.pixel ? 0 : 0.04 });
+        return c;
+      };
+      for (const [kind, nm] of TABS) {
+        await save(`maintabIco${nm}@${k}x.png`, tabNor[kind] ? tabArt(tabNor[kind])
+          : chrome(38, 38, k, o.pixelChar, ctx => drawIcon(ctx, kind, 'stroke', pal.muted)));
+        if (tabSel[kind]) { await save(`maintabIco${nm}Selected@${k}x.png`, tabArt(tabSel[kind])); continue; }
+        const c = makeCanvas(38 * k, 38 * k), ctx = ctxOf(c, o.pixelChar);
+        drawChar(ctx, A, 'full', { x: 0, y: 0, w: 38 * k, h: 38 * k }, k, { pad: o.pixelChar ? 0 : 0.04 });
+        const badge = chrome(38, 38, k, o.pixelChar, x => {
+          x.translate(23, 23); x.scale(0.38, 0.38);
+          drawIcon(x, kind, 'stroke', pal.bg, 9); drawIcon(x, kind, 'fill', pal.accent, 9);
+          drawIcon(x, kind, 'stroke', pal.accent, 3);
+        });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(badge, 0, 0); release(badge);
+        await save(`maintabIco${nm}Selected@${k}x.png`, c);
+      }
+      for (const alias of ['Piccoma', 'Local']) for (const suf of ['', 'Selected']) {
+        images.set(`maintabIco${alias}${suf}@${k}x.png`, images.get(`maintabIcoNow${suf}@${k}x.png`));
+      }
+      // 말풍선 8종. slot 말풍선 그림이 있으면 그 레이아웃 자리에 (빼꼼 slot 은 이미 빼꼼 그림이라 자르지 않음)
+      for (const side of ['send', 'receive']) {
+        const slot = side === 'send' ? bubSend : bubRecv;
+        const ch = slot || (side === 'send' ? A : B);
+        const key = slot && o.layout === 'peek' ? 'full' : VARIANT[o.layout];
+        for (const [n, group] of [['01', false], ['02', true]]) {
+          const b = bubbleSpec(o.layout, o.pixelBubble, group, o);
+          for (const sel of [false, true]) {
+            const img = bubbleImage(b, { tail: !group, selected: sel, side, k, pixel: o.pixelBubble, outline: o.outline, outlineColor: o.outlineColor, deco: group ? 'none' : o.deco }, pal);
+            const box = !group && charBox(o.layout, side, b);
+            let c;
+            if (!box) c = imgCanvas(img);
+            else if (ch.pixel) { // 픽셀 캐릭터는 순수 합성 (격자 그대로)
+              c = imgCanvas(layerChar(img, fitSprite(variant(ch, key).sprite, box.w, box.h, k, !ch.asSprite), box, o.layout, k));
+            } else {
+              const pxBox = { x: box.x * k, y: box.y * k, w: box.w * k, h: box.h * k };
+              if (o.layout === 'peek') { // 캐릭터 먼저, 몸통을 그 위에 (받은 쪽도 그림은 반전 안 함)
+                c = makeCanvas(img.width, img.height);
+                const ctx = ctxOf(c);
+                drawChar(ctx, ch, key, pxBox, k, { align: 'bottom' });
+                const bc = imgCanvas(img);
+                ctx.drawImage(bc, 0, 0); release(bc);
+              } else {
+                c = imgCanvas(img);
+                drawChar(ctxOf(c), ch, key, pxBox, k, { align: 'bottom' });
+              }
+            }
+            await save(`chatroomBubble${side === 'send' ? 'Send' : 'Receive'}${n}${sel ? 'Selected' : ''}@${k}x.png`, c);
+          }
+        }
+      }
+      // 친구 추가 버튼: sendFill 알약 + 사람+플러스
+      await save(`findBtnAddFriend@${k}x.png`, chrome(42, 34, k, o.pixelChar, ctx => {
+        ctx.fillStyle = pal.sendFill; ctx.beginPath(); rr(ctx, 0, 0, 42, 34, 17); ctx.fill();
+        ctx.fillStyle = pal.text;
+        ctx.beginPath(); ctx.arc(16, 12.5, 4.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(8.5, 25.5); ctx.bezierCurveTo(8.5, 20, 12, 18, 16, 18); ctx.bezierCurveTo(20, 18, 23.5, 20, 23.5, 25.5); ctx.closePath(); ctx.fill();
+        ctx.fillRect(26, 15.6, 8, 2.8); ctx.fillRect(28.6, 13, 2.8, 8);
+      }));
+    }
+
+    // 배경 (@3x 만): 배경색 + (사진 | 무늬) + 구석 그림. 사진이면 헤더 330px 에 배경색 70% 띠 (아래 60px 페이드).
+    // @3x 하나뿐인 그림은 격자를 맞출 짝이 없어 픽셀 캐릭터도 1칸 = c px (k=1) 로 크게 둔다
+    const layers = patternLayers(bgo), pf = PATTERN_SIZES[bgo.patternSize];
+    for (const [name, which, photo, slot] of [['mainBgImage@3x.png', 'main', as.bgMain, sl.cornerMain], ['chatroomBgImage@3x.png', 'chat', as.bgChat, sl.cornerChat]]) {
+      const spec = BG[which], box = cornerBox(which, bgo.corner);
+      const c = makeCanvas(spec.w, spec.h), ctx = ctxOf(c, o.pixelChar);
+      ctx.fillStyle = bgColor; ctx.fillRect(0, 0, spec.w, spec.h);
+      if (photo) {
+        bgMeta.dim[which] = drawPhoto(ctx, photo, spec.w, spec.h, bgo.photo[which], bgColor, pal, BG.header, spec.h);
+        const a = Math.round(BG.headerBand * 255).toString(16).padStart(2, '0'), g = ctx.createLinearGradient(0, BG.header, 0, BG.header + BG.headerFade);
+        g.addColorStop(0, bgColor + a); g.addColorStop(1, bgColor + '00');
+        ctx.save(); ctx.globalAlpha = BG.headerBand; ctx.fillStyle = bgColor; ctx.fillRect(0, 0, spec.w, BG.header); ctx.restore();
+        ctx.fillStyle = g; ctx.fillRect(0, BG.header, spec.w, BG.headerFade);
+      } else if (bgo.patternArea[which] === 'full') pattern(ctx, layers, pf, pal, 0, BG.header, spec.w, spec.h, box, bgo.patternColors);
+      else if (bgo.patternArea[which] === 'top') pattern(ctx, layers, pf, pal, 0, BG.topBand[0], spec.w, BG.topBand[1], null, bgo.patternColors);
+      if (box) {
+        drawChar(ctx, art(slot) || A, 'full', box, 1, { align: box.align, alpha: box.alpha });
+      }
+      await save(name, c);
+    }
+    {
+      const P = BG.passcode, c = makeCanvas(P.w, P.h), ctx = ctxOf(c, o.pixelChar);
+      ctx.fillStyle = bgColor; ctx.fillRect(0, 0, P.w, P.h);
+      if (as.bgPasscode) bgMeta.dim.passcode = drawPhoto(ctx, as.bgPasscode, P.w, P.h, bgo.photo.passcode, bgColor, pal, 0, P.patternEnd);
+      else if (bgo.patternArea.passcode === 'full') pattern(ctx, layers, pf, pal, 0, 0, P.w, P.patternEnd, null, bgo.patternColors);
+      // 맨 아래 300px 는 키패드 색으로 (이음매 없음, 사진 위에서도)
+      const g = ctx.createLinearGradient(0, P.gradStart, 0, P.h);
+      g.addColorStop(0, pal.keypad + '00'); g.addColorStop(1, pal.keypad);
+      ctx.fillStyle = g; ctx.fillRect(0, P.gradStart, P.w, P.h - P.gradStart);
+      drawChar(ctx, art(sl.passcodeArt) || A, 'full', P.char, 1, { align: 'bottom' });
+      await save('passcodeBgImage@3x.png', c);
+    }
+    // 기본 프로필 360: bg 보다 살짝 진한 틴트 + 캐릭터 (또는 profile slot)
+    {
+      const ch = art(sl.profile) || A;
+      const c = makeCanvas(360, 360), ctx = ctxOf(c, ch.pixel);
+      ctx.fillStyle = pal.profileBg; ctx.fillRect(0, 0, 360, 360);
+      drawChar(ctx, ch, 'full', { x: 15, y: 24, w: 330, h: 330 }, 1, { align: 'bottom' });
+      await save('profileImg01@3x.png', c);
+    }
+    // 잠금 비밀번호 점 132: accent 링 / Selected 1~3 빼꼼, 4 전신+반짝이 (자리별 slot 이 있으면 그 그림)
+    {
+      const bullet = await canvasToBlob(chrome(44, 44, 3, o.pixelChar, ctx => {
+        ctx.strokeStyle = pal.accent; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(22, 22, 7, 0, Math.PI * 2); ctx.stroke();
+      }));
+      let peekBlob = null;
+      const peek = async () => peekBlob || (peekBlob = await canvasToBlob((() => { const c = makeCanvas(132, 132); drawChar(ctxOf(c, o.pixelChar), A, 'peek', { x: 0, y: 0, w: 132, h: 132 }, 1, { align: 'bottom', pad: 0.04 }); return c; })()));
+      const burst = async () => {
+        const c = makeCanvas(132, 132), bctx = ctxOf(c, o.pixelChar);
+        drawChar(bctx, A, 'full', { x: 6, y: 10, w: 120, h: 120 }, 1, { align: 'bottom' });
+        const sparks = chrome(44, 44, 3, o.pixelChar, ctx => { ctx.fillStyle = pal.accent; ctx.beginPath(); star(ctx, 38, 6, 5); star(ctx, 6, 12, 3.5); ctx.fill(); });
+        bctx.imageSmoothingEnabled = false; bctx.drawImage(sparks, 0, 0); release(sparks);
+        return canvasToBlob(c);
+      };
+      for (let i = 1; i <= 4; i++) {
+        images.set(`passcodeImgCode0${i}@3x.png`, bullet);
+        const ch = art(sl.passcodeSelected[i - 1]);
+        let blob;
+        if (ch) { const c = makeCanvas(132, 132); drawChar(ctxOf(c, ch.pixel), ch, 'full', { x: 0, y: 0, w: 132, h: 132 }, 1, { pad: 0.02 }); blob = await canvasToBlob(c); }
+        else blob = i === 4 ? await burst() : await peek();
+        images.set(`passcodeImgCode0${i}Selected@3x.png`, blob);
+      }
+    }
+    // 키패드 눌림 180: sendFill 원 (알파 0.9)
+    await save('passcodeKeypadPressed@3x.png', chrome(60, 60, 3, o.pixelChar, ctx => {
+      ctx.globalAlpha = 0.9; ctx.fillStyle = pal.sendFill; ctx.beginPath(); ctx.arc(30, 30, 26, 0, Math.PI * 2); ctx.fill();
+    }));
+  } finally {
+    freeChar(A); if (B !== A) freeChar(B);
+    arts.forEach(freeChar);
+  }
+
+  for (const s of IMAGES) if (!images.has(s.name)) throw new Error(`missing ${s.name}`);
+  const meta = {
+    bubbles: { '01': bubbleSpec(o.layout, o.pixelBubble, false, o), '02': bubbleSpec(o.layout, o.pixelBubble, true, o) },
+    palette: pal,
+    background: bgMeta,
+    themeId: themeId(o.id),
+    themeName: themeName(o.name),
+  };
+  const css = buildCss(meta);
+  files.set('KakaoTalkTheme.css', new Blob([css], { type: 'text/css' }));
+  for (const s of IMAGES) files.set(`Images/${s.name}`, images.get(s.name));
+  return { files, css, meta };
+}
+
+/** 커플 상대 폰용 ID: 각 자리 15-n (원본과 항상 다름) */
+export const partnerId = id => id.replace(/./g, c => (15 - parseInt(c, 16)).toString(16));
+
+const fileBase = name => (String(name || '').replace(/[\\/:*?"<>|'\n\r\u2014]/g, '').trim().slice(0, 40) || 'tokku-theme');
+
+/**
+ * 커플 세트: [내 폰용(A가 보낸 쪽), 상대 폰용(B가 보낸 쪽)]. 색은 둘이 같게 (A 기준 또는 opts.colors).
+ * assets 의 배경 사진은 두 폰 같이, slot 그림은 A 의 그림이라 상대 폰에서는 받은 쪽 말풍선(A 자리)에만 쓴다.
+ */
+export async function buildCouple(charA, charB, opts, assets) {
+  const o = normalizeOptions(opts);
+  const as = checkAssets(assets);
+  const colors = o.colors ? { ...derive(charA), ...o.colors } : derive(charA);
+  const base = fileBase(o.name);
+  const a = await buildTheme(charA, charB, { ...o, colors }, assets);
+  const blobA = await packTheme(a.files);
+  const b = await buildTheme(charB, charA, { ...o, colors, id: partnerId(o.id) },
+    { bgMain: as.bgMain, bgChat: as.bgChat, bgPasscode: as.bgPasscode, recvBubble: as.slots.bubble });
+  const blobB = await packTheme(b.files);
+  return [{ name: `${base}-나.ktheme`, blob: blobA }, { name: `${base}-상대.ktheme`, blob: blobB }];
+}
+
+/** 단일 테마 파일 이름 */
+export const themeFileName = opts => fileBase(opts && opts.name) + '.ktheme';

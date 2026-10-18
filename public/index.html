@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>톡꾸 키트 · 무료로 만드는 내 캐릭터 테마</title>
+<meta name="description" content="무료 오픈소스. 내 그림 한 장이면 아이폰 카카오톡 테마 파일(.ktheme)이 완성돼요. 말풍선 위 캐릭터, 친구 캐릭터, 픽셀 아트까지. 그림은 서버로 보내지 않아요. ㈜카카오와 무관한 개인 제작 도구입니다.">
+<meta name="theme-color" content="#FFF6EE">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="톡꾸 키트">
+<meta property="og:title" content="톡꾸 키트 · 사진 한 장으로 내 캐릭터 테마">
+<meta property="og:description" content="카카오톡 iOS 테마 파일(.ktheme) 제작 도구. 전부 무료, 오픈소스예요.">
+<meta property="og:url" content="https://tokku-kit.vercel.app/">
+<meta property="og:image" content="https://tokku-kit.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tokku-kit.vercel.app/og.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
+<style>
+  :root{--bg:#FFF6EE;--card:#FFFFFF;--ink:#4A3440;--muted:#76566A;--rose:#B23A64;--rose-d:#962E52;--line:#EBD9CE;--soft:#FBEDE6;--ok:#2F6B4F;--warn:#9A3B1E}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif;overflow-x:hidden;word-break:keep-all;overflow-wrap:anywhere}
+  h1,h2,h3,.pix{font-family:"Galmuri11",Pretendard,sans-serif;font-weight:700;letter-spacing:0;line-height:1.35}
+  h1{font-size:clamp(28px,7vw,44px);margin:0 0 14px}
+  h2{font-size:clamp(22px,5vw,30px);margin:0 0 8px}
+  h3{font-size:17px;margin:0 0 6px}
+  p{margin:0 0 10px}
+  a{color:var(--rose)}
+  :focus-visible{outline:3px solid var(--rose);outline-offset:2px;border-radius:6px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* 헤더: 단색 + 헤어라인 (반투명 금지) */
+  .top{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line)}
+  .top .wrap{display:flex;align-items:center;justify-content:space-between;height:56px;gap:12px}
+  .logo{font-family:"Galmuri11",sans-serif;font-weight:700;font-size:18px;color:var(--ink);text-decoration:none;white-space:nowrap}
+  .logo b{color:var(--rose)}
+  .top nav{display:flex;gap:4px;align-items:center}
+  .top nav a{color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;padding:8px 8px;border-radius:8px;white-space:nowrap}
+  .top nav a.go{background:var(--rose);color:#fff;padding:8px 12px}
+  .top nav a.free{color:var(--ok);padding:4px 10px}
+
+  .note{background:#FFF0D9;border-bottom:1px solid #F1D3A6;color:#6B3F12;font-size:14px}
+  .note .wrap{padding-top:10px;padding-bottom:10px}
+
+  /* 버튼 */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:10px 18px;border-radius:14px;border:1.5px solid var(--ink);background:var(--card);color:var(--ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none;text-align:center}
+  .btn.primary{background:var(--rose);border-color:var(--rose);color:#fff}
+  .btn.primary:hover{background:var(--rose-d);border-color:var(--rose-d)}
+  .btn.ghost{border-color:var(--line)}
+  .btn.small{min-height:38px;padding:6px 12px;font-size:14px;border-radius:11px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+  /* 히어로 */
+  .hero{padding:36px 0 24px}
+  .hero .wrap{display:grid;gap:28px;align-items:center}
+  .eyebrow{display:inline-block;font-size:13px;font-weight:600;color:var(--muted);background:var(--soft);border:1px solid var(--line);padding:4px 10px;border-radius:999px;margin-bottom:14px}
+  .lead{font-size:17px;color:var(--muted);margin-bottom:20px}
+  .fine{font-size:13px;color:var(--muted);margin-top:12px}
+  .hero-phone{max-width:340px;width:100%;justify-self:center}
+
+  section{padding:44px 0;scroll-margin-top:56px}
+  .sec-head{margin-bottom:20px}
+  .sec-head p{color:var(--muted)}
+
+  /* 빌더 */
+  #builder{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;list-style:none;margin:0 0 16px;padding:0}
+  .stepper button{width:100%;min-height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:6px 4px}
+  .stepper button span{display:block;font-family:"Galmuri11",sans-serif;font-size:12px}
+  .stepper button[aria-current="step"]{border-color:var(--rose);color:var(--rose);background:#fff}
+  .b-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 16px}
+  .panel h3{font-size:18px}
+  .panel .hint{font-size:14px;color:var(--muted)}
+  .field{margin:18px 0}
+  .field>.lab{display:block;font-weight:700;font-size:15px;margin-bottom:8px}
+  .lab small{font-weight:500;color:var(--muted)}
+  .drop{display:flex;align-items:center;gap:14px;border:2px dashed #DCC3B6;border-radius:16px;padding:12px;background:var(--bg);cursor:pointer;min-height:84px}
+  .drop.over{border-color:var(--rose);background:#fff}
+  .drop img{width:60px;height:60px;object-fit:contain;border-radius:10px;background:#fff;flex-shrink:0}
+  .drop img[hidden]{display:none}
+  .drop .t{font-size:14px}
+  .drop .t b{display:block;font-size:15px}
+  .drop input{position:absolute;width:1px;height:1px;opacity:0}
+  .drop:has(input:focus-visible),label.btn:has(+ input.sr:focus-visible){outline:3px solid var(--rose);outline-offset:2px}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg button{min-height:42px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .seg button[aria-pressed="true"]{border-color:var(--rose);background:#FDEAF0;color:var(--rose-d)}
+  .seg button:disabled{opacity:.4;cursor:not-allowed}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;padding:10px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px;font-weight:600;cursor:pointer;text-align:left}
+  .toggle:disabled{opacity:.45;cursor:not-allowed}
+  .toggle i{flex-shrink:0;width:44px;height:26px;border-radius:13px;background:#D9C7BD;position:relative;transition:background .15s}
+  .toggle i::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
+  .toggle[aria-pressed="true"] i{background:var(--rose)}
+  .toggle[aria-pressed="true"] i::after{transform:translateX(18px)}
+  .sw{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .sw label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-align:center;cursor:pointer}
+  .sw input{width:100%;max-width:56px;aspect-ratio:1;height:auto;border:1.5px solid var(--line);border-radius:14px;padding:0;background:none;cursor:pointer}
+  .sw input::-webkit-color-swatch-wrapper{padding:3px}
+  .sw input::-webkit-color-swatch{border:none;border-radius:10px}
+  input[type=text]{width:100%;min-height:46px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;color:var(--ink);background:#fff}
+  input[type=range]{width:100%;accent-color:var(--rose)}
+  .nav{display:flex;justify-content:space-between;gap:8px;margin-top:22px}
+  .chk{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .chk figure{margin:0}
+  .chk canvas{display:block;width:100%;height:200px;object-fit:contain;border-radius:14px;border:1px solid var(--line);
+    background:#fff conic-gradient(#EADFD8 25%,#fff 0 50%,#EADFD8 0 75%,#fff 0) 0 0/16px 16px}
+  .chk figcaption{font-size:13px;color:var(--muted);margin-top:6px}
+  .chk figcaption.warn{color:var(--warn);font-weight:600}
+  .peek{display:flex;justify-content:flex-end;position:sticky;bottom:12px;margin-top:8px;pointer-events:none}
+  .peek .btn{pointer-events:auto;box-shadow:0 4px 14px rgba(74,52,64,.18)}
+  .peek .btn.pulse{animation:pulse .5s ease-in-out 3}
+  @keyframes pulse{50%{transform:scale(1.08);box-shadow:0 0 0 6px #FDEAF0}}
+  @media (prefers-reduced-motion:reduce){.peek .btn.pulse{animation:none}}
+  .msg{font-size:14px;margin-top:8px;min-height:1.6em}
+  .msg.err{color:var(--warn)}.msg.ok{color:var(--ok)}
+  .check{display:flex;align-items:flex-start;gap:10px;margin-top:10px;font-size:15px;font-weight:600;cursor:pointer}
+  .check input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--rose);flex-shrink:0}
+  .check small{display:block;font-weight:500;color:var(--muted);font-size:13px}
+  .limit{font-size:13px;color:var(--muted);background:var(--soft);border-radius:12px;padding:8px 12px;margin:8px 0 0}
+  .packform{display:flex;gap:8px;margin-top:8px}
+  .packform input{flex:1;min-width:0;min-height:38px;border:1.5px solid var(--line);border-radius:11px;padding:6px 10px;font:inherit;font-size:14px;color:var(--ink);background:#fff}
+  .packbar{background:#FDEAF0;border-bottom:1px solid var(--line);font-size:14px}
+  .packbar .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:8px;padding-bottom:8px}
+  .packbar .seg button{min-height:34px;padding:4px 10px;font-size:13px}
+  .packbar #packOff{margin-left:auto}
+  .free{font-size:12px;font-weight:700;color:var(--ok);background:#E6F2EA;border:1px solid #CBE3D3;border-radius:999px;padding:4px 10px;white-space:nowrap;text-decoration:none}
+  .files{display:grid;gap:10px;margin-top:12px}
+  .file{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--bg)}
+  .file .n{font-weight:700;font-size:14px;margin-bottom:8px}
+  .file .n small{font-weight:500;color:var(--muted)}
+  .steps4{counter-reset:s;list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+  .steps4 li{counter-increment:s;position:relative;padding:10px 12px 10px 44px;background:var(--bg);border-radius:12px;font-size:14px}
+  .steps4 li::before{content:counter(s);position:absolute;left:12px;top:10px;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font:700 12px/22px "Galmuri11",sans-serif;text-align:center}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:16px}
+  /* 템플릿 카드 + 미니 말풍선 (그림 대신 CSS 로, 내 캐릭터 썸네일을 얹음) */
+  .lab-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+  .lab-row .lab{margin:0}
+  .chip{font-size:12px;font-weight:700;color:var(--rose-d);background:#FDEAF0;border-radius:999px;padding:3px 10px;white-space:nowrap}
+  /* 좁은 화면: 템플릿은 가로로 넘기는 한 줄 (카드가 커야 캐릭터 자리가 보인다). 560px 부터 격자 */
+  .tpl-grid{display:grid;grid-auto-flow:column;grid-auto-columns:min(68vw,260px);gap:10px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x mandatory;overscroll-behavior-x:contain}
+  .tpl-grid .tpl{scroll-snap-align:start}
+  .tpl-grid .tpl small{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .tpl{display:flex;flex-direction:column;gap:4px;min-width:0;padding:8px;border:1.5px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+  .tpl b{font-size:14px;line-height:1.3;margin-top:2px}
+  .tpl small{font-size:12px;color:var(--muted);line-height:1.4}
+  .tpl[aria-pressed="true"]{border-color:var(--rose);background:#FFF8FA;box-shadow:0 0 0 2px #FDEAF0}
+  .tpl:disabled{opacity:.45;cursor:not-allowed}
+  .tpl .th{display:block;width:100%;height:auto;aspect-ratio:12/11;object-fit:cover;object-position:top;border-radius:12px;background:var(--bg)}
+  .tpl-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,168px);gap:10px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x mandatory;overscroll-behavior-x:contain}
+  .tpl-strip .tpl{scroll-snap-align:start}
+  details.more{background:var(--bg);margin:18px 0 0}
+  details.more summary small{font-weight:500;color:var(--muted);font-size:13px;margin-left:4px}
+  details.more .field:first-of-type{margin-top:6px}
+  @media (min-width:560px){.tpl-grid{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;overflow:visible;padding:0}.tpl-grid .tpl small{display:block}}
+  /* 배경 · 자리별 그림 (접힘 기본) */
+  details.more.sub{background:var(--card);margin:14px 0 0}
+  .pats button{display:inline-flex;align-items:center;gap:6px}
+  .pats i{flex-shrink:0;width:22px;height:22px;border-radius:6px;border:1px solid var(--line);background-color:#FFF6EE}
+  .pt-dots{background:radial-gradient(circle,#E58FAA 28%,transparent 32%) 0 0/7px 7px}
+  .pt-check{background:repeating-conic-gradient(#F6D7E1 0 25%,#FFF6EE 0 50%) 0 0/11px 11px}
+  .pt-grid{background:linear-gradient(#C9B2A6 1px,transparent 1px) 0 0/7px 7px,linear-gradient(90deg,#C9B2A6 1px,transparent 1px) 0 0/7px 7px}
+  .pt-stars{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath fill='%23E8B33A' d='M6 2l1.2 3 3 .2-2.3 2 .7 3L6 8.6 3.4 10.2l.7-3-2.3-2 3-.2zM16 11l1 2.4 2.5.2-1.9 1.6.6 2.5-2.2-1.4-2.2 1.4.6-2.5-1.9-1.6 2.5-.2z'/%3E%3C/svg%3E")}
+  .pt-grid\+stars{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath fill='%23E8B33A' d='M6 2l1.2 3 3 .2-2.3 2 .7 3L6 8.6 3.4 10.2l.7-3-2.3-2 3-.2zM16 11l1 2.4 2.5.2-1.9 1.6.6 2.5-2.2-1.4-2.2 1.4.6-2.5-1.9-1.6 2.5-.2z'/%3E%3C/svg%3E"),linear-gradient(#C9B2A6 1px,transparent 1px) 0 0/7px 7px,linear-gradient(90deg,#C9B2A6 1px,transparent 1px) 0 0/7px 7px}
+  .pt-hearts{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath fill='%23E58FAA' d='M6 10S2 7.4 2 5a2 2 0 0 1 4-.6A2 2 0 0 1 10 5c0 2.4-4 5-4 5zM15 19s-4-2.6-4-5a2 2 0 0 1 4-.6 2 2 0 0 1 4 .6c0 2.4-4 5-4 5z'/%3E%3C/svg%3E")}
+  .pt-cubes{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect x='2' y='3' width='6' height='6' rx='1.6' fill='%237FA8E0'/%3E%3Crect x='13' y='6' width='6' height='6' rx='1.6' fill='%23F0CB55'/%3E%3Crect x='6' y='13' width='6' height='6' rx='1.6' fill='%23EE9DB8'/%3E%3C/svg%3E")}
+  .bgc{width:46px;height:40px;border:1.5px solid var(--line);border-radius:12px;padding:0;background:none;cursor:pointer}
+  .bgc::-webkit-color-swatch-wrapper{padding:3px}
+  .bgc::-webkit-color-swatch{border:none;border-radius:8px}
+  .photo{border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:8px;background:var(--bg)}
+  .photo .row b{font-size:14px;min-width:52px}
+  .photo .pth{width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .photo .pctl{margin-top:8px}
+  .photo .pctl .lab{font-size:13px;margin:8px 0 2px}
+  .pick-btn{position:relative}
+  .pick-btn:has(input:focus-visible),.slot .pick:has(input:focus-visible){outline:3px solid var(--rose);outline-offset:2px}
+  .slot-g{font-size:13px;font-weight:700;margin:14px 0 6px}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+  .slot.idle .pick{opacity:.55}
+  .slot small{color:var(--muted);font-size:11px}
+  .panel[data-step="3"]{padding-bottom:64px} /* 떠 있는 '미리보기 보기' 버튼 아래로 마지막 줄을 스크롤해 꺼낼 수 있게 */
+  .slot{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;font-size:12px;text-align:center;line-height:1.35}
+  .slot .pick{position:relative;display:grid;place-items:center;width:100%;aspect-ratio:1;border:1.5px dashed #DCC3B6;border-radius:12px;background:var(--bg);cursor:pointer;overflow:hidden}
+  .slot.on .pick{border-style:solid;background:#fff conic-gradient(#EADFD8 25%,#fff 0 50%,#EADFD8 0 75%,#fff 0) 0 0/12px 12px}
+  .slot.warn .pick{border-color:var(--warn)}
+  .slot .pick img{width:100%;height:100%;object-fit:contain}
+  .slot .pick span{font-size:12px;color:var(--muted)}
+  .slot .x{font:inherit;font-size:12px;border:0;background:none;color:var(--rose-d);text-decoration:underline;cursor:pointer;min-height:28px;padding:0 4px}
+  .b-preview .cap{text-align:center;font-size:13px;color:var(--muted);margin-top:10px}
+
+  /* 특징 / 무료 / FAQ */
+  .grid3{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+  .feat .ic{font-family:"Galmuri11",sans-serif;font-size:13px;color:var(--rose);margin-bottom:6px}
+  .feat p{color:var(--muted);font-size:15px;margin:0}
+  details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0 16px;margin-bottom:10px}
+  summary{cursor:pointer;font-weight:700;padding:14px 0;list-style-position:outside}
+  details p,details ol{color:var(--muted);font-size:15px}
+  details[open]{padding-bottom:12px}
+  footer{border-top:1px solid var(--line);padding:28px 0 40px;font-size:14px;color:var(--muted)}
+  footer a{color:var(--ink);font-weight:600}
+  @media (max-width:419px){.top nav .faq{display:none}}
+
+  @media (min-width:720px){
+    .hero .wrap{grid-template-columns:1.1fr .9fr}
+    .panel{padding:24px}
+  }
+  @media (min-width:960px){
+    .b-grid{grid-template-columns:minmax(0,1fr) 420px;align-items:start}
+    .b-preview{position:sticky;top:72px}
+    .peek{display:none}
+    .hero{padding:56px 0 36px}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="톡꾸 키트 처음으로">톡꾸<b>.</b>키트</a>
+    <nav aria-label="주요 메뉴">
+      <a class="free" data-gh href="#" target="_blank" rel="noopener">무료 · 오픈소스</a>
+      <a class="faq" href="#faq">자주 묻는 질문</a>
+      <a class="go" href="#builder">만들기</a>
+    </nav>
+  </div>
+</header>
+<div class="note" id="engineNote" role="status" hidden><div class="wrap" id="engineNoteText"></div></div>
+<div class="packbar" id="packBar" hidden><div class="wrap">
+  <span>캐릭터 팩: <b id="packName"></b></span>
+  <div class="seg" id="packVars" role="group" aria-label="팩 그림 종류"></div>
+  <button type="button" class="btn small ghost" id="packOff">팩 끄기</button>
+</div></div>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">무료 · 오픈소스 · 카카오톡 iOS 테마 파일(.ktheme) 제작 도구</span>
+        <h1>그림 한 장이면<br>내 캐릭터 테마 완성</h1>
+        <p class="lead">우리 집 강아지, 내가 그린 캐릭터가 말풍선 옆에서 말해요. 친구 말풍선엔 친구 캐릭터, 픽셀 아트도 버튼 하나. 결제도 워터마크도 없어요.</p>
+        <div class="row">
+          <button type="button" class="btn primary" id="ctaMake">내 그림으로 만들기</button>
+          <a class="btn ghost" data-gh href="#" target="_blank" rel="noopener">GitHub 소스 보기</a>
+        </div>
+        <p class="fine">그림은 서버로 보내지 않아요. 전부 내 기기 안에서 만들어요. 아이폰 전용.</p>
+      </div>
+      <div class="hero-phone" id="heroPhone"></div>
+    </div>
+  </section>
+
+  <section id="builder" aria-labelledby="bTitle">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="bTitle">만들기</h2>
+        <p id="bLead">지금 보이는 건 데모 강아지 '젤리' 테마예요. 내 그림을 넣으면 바로 바뀌어요.</p>
+      </div>
+      <ol class="stepper" aria-label="만들기 단계">
+        <li><button type="button" data-go="1" aria-current="step"><span>1</span>사진</button></li>
+        <li><button type="button" data-go="2"><span>2</span>다듬기</button></li>
+        <li><button type="button" data-go="3"><span>3</span>꾸미기</button></li>
+        <li><button type="button" data-go="4"><span>4</span>받기</button></li>
+      </ol>
+      <div class="b-grid">
+        <div class="b-steps">
+          <!-- 1 사진 넣기 -->
+          <div class="panel" data-step="1">
+            <h3>1. 사진 넣기</h3>
+            <p class="hint">png, jpg, webp 다 돼요. 배경이 없는 사진이면 더 예뻐요.</p>
+            <div class="field">
+              <span class="lab">내 캐릭터 <small>(보낸 말풍선, 꼭 필요해요)</small></span>
+              <label class="drop" id="dropA">
+                <img id="thumbA" alt="내 캐릭터 미리보기" hidden>
+                <span class="t"><b id="nameA">사진 고르기</b>누르거나 여기로 끌어 놓으세요</span>
+                <input type="file" id="fileA" accept="image/png,image/jpeg,image/webp">
+              </label>
+            </div>
+            <div class="field">
+              <span class="lab">친구 캐릭터 <small>(받은 말풍선, 선택)</small></span>
+              <label class="drop" id="dropB">
+                <img id="thumbB" alt="친구 캐릭터 미리보기" hidden>
+                <span class="t"><b id="nameB">사진 고르기 (선택)</b>안 넣으면 받은 말풍선에도 내 캐릭터가 나와요</span>
+                <input type="file" id="fileB" accept="image/png,image/jpeg,image/webp">
+              </label>
+              <p class="limit">카카오톡 테마 규격상 받은 말풍선 그림은 친구마다 다르게 할 수 없어요. 테마 하나에 친구 캐릭터 하나라서, 모든 친구의 말풍선에 같은 캐릭터가 나와요.</p>
+              <div class="row" style="margin-top:8px"><button type="button" class="btn small ghost" id="clearB" hidden>친구 캐릭터 빼기</button></div>
+              <label class="check" id="coupleRow" hidden><input type="checkbox" id="couple"><span>상대 폰용도 같이 만들기<small>커플이라면: 친구 캐릭터가 보낸 말풍선에 나오는 테마를 하나 더 만들어 상대에게 줄 수 있어요.</small></span></label>
+            </div>
+            <p class="hint">팁: 아이폰 사진 앱에서 피사체를 길게 누르고 공유 → '이미지 저장'을 고르면 배경 없는 사진이 사진 앱에 저장돼요(iOS 16 이상). 그 사진을 고르세요. PC에서는 복사한 그림을 이 페이지에 붙여 넣어도 돼요.</p>
+            <div class="row">
+              <button type="button" class="btn small ghost" id="demoOne">젤리 데모</button>
+              <button type="button" class="btn small ghost" id="demoCouple">젤리 + 친구 호떡 데모</button>
+              <label class="btn small ghost" for="fileProj">저장한 프로젝트 불러오기</label>
+              <input type="file" id="fileProj" accept="application/json,.json" class="sr">
+              <button type="button" class="btn small ghost" id="packOpen">캐릭터 팩 불러오기</button>
+            </div>
+            <form class="packform" id="packForm" hidden>
+              <label class="sr" for="packUrl">캐릭터 팩 pack.json 주소</label>
+              <input type="url" id="packUrl" placeholder="https://.../pack.json" autocomplete="off" spellcheck="false" required>
+              <button type="submit" class="btn small">불러오기</button>
+            </form>
+            <p class="msg" id="msg1" role="status"></p>
+            <div class="nav"><span></span><button type="button" class="btn primary" data-next>다음</button></div>
+          </div>
+
+          <!-- 2 다듬기 -->
+          <div class="panel" data-step="2" hidden>
+            <h3>2. 다듬기</h3>
+            <p class="hint">사진 가장자리와 이어진 배경만 지워요. 캐릭터 안쪽은 그대로 남아요. 체크무늬가 보이는 곳이 투명한 부분이에요.</p>
+            <div id="trimList"></div>
+            <div class="nav"><button type="button" class="btn ghost" data-prev>이전</button><button type="button" class="btn primary" data-next>다음</button></div>
+          </div>
+
+          <!-- 3 꾸미기 -->
+          <div class="panel" data-step="3" hidden>
+            <h3>3. 꾸미기</h3>
+            <div class="field" id="tplField" hidden>
+              <div class="lab-row"><span class="lab" id="lTpl">템플릿 고르기</span><span class="chip" id="tplState" role="status"></span></div>
+              <p class="hint">누르면 한 번에 바뀌어요. 색은 내 사진에서 뽑은 색 그대로예요.</p>
+              <div class="tpl-grid" id="tplGrid" role="group" aria-labelledby="lTpl"></div>
+            </div>
+            <details class="more" id="more">
+              <summary>더 꾸미기 <small>캐릭터 자리·크기, 말풍선 모양, 장식, 색, 배경</small></summary>
+              <!-- 버튼은 app.js 의 CHOICES 표에서 채운다 (불러오기 검증도 같은 표) -->
+              <div class="field"><span class="lab" id="lLayout">말풍선 위 캐릭터</span><div class="seg" role="group" aria-labelledby="lLayout" data-opt="layout"></div></div>
+              <div class="field"><span class="lab" id="lSize">캐릭터 크기</span><div class="seg" role="group" aria-labelledby="lSize" data-opt="charSize"></div></div>
+              <div class="field"><span class="lab" id="lShape">말풍선 모양 <small id="shapeNote"></small></span><div class="seg" role="group" aria-labelledby="lShape" data-opt="bubbleShape"></div></div>
+              <div class="field"><span class="lab" id="lLine">테두리 굵기</span><div class="seg" role="group" aria-labelledby="lLine" data-opt="outline"></div></div>
+              <div class="field"><span class="lab" id="lLineC">테두리 색</span><div class="seg" role="group" aria-labelledby="lLineC" data-opt="outlineColor"></div></div>
+              <div class="field"><span class="lab" id="lDeco">말풍선 장식</span><div class="seg" role="group" aria-labelledby="lDeco" data-opt="deco"></div></div>
+              <div class="field"><span class="lab" id="lFill">말풍선 바탕색</span><div class="seg" role="group" aria-labelledby="lFill" data-opt="fillTone"></div></div>
+              <div class="field">
+                <button type="button" class="toggle" data-toggle="pixelChar" aria-pressed="false">캐릭터를 픽셀 아트로<i aria-hidden="true"></i></button>
+                <div class="seg" role="group" aria-label="픽셀 굵기" data-opt="grid" style="margin-top:8px"></div>
+              </div>
+              <div class="field"><button type="button" class="toggle" data-toggle="pixelBubble" aria-pressed="false">말풍선도 픽셀로<i aria-hidden="true"></i></button></div>
+              <!-- 배경: 버튼·줄은 app.js 의 BG_SEG / PHOTO_KEYS 표에서 채운다 -->
+              <details class="more sub" id="bgMore">
+                <summary>배경 <small>무늬, 색, 내 사진, 구석 캐릭터</small></summary>
+                <div id="bgBox">
+                  <div class="field"><span class="lab" id="lPat">무늬 <small id="patNote"></small></span><div class="seg pats" role="group" aria-labelledby="lPat" data-bgk="pattern"></div></div>
+                  <div class="field">
+                    <label class="lab" for="patSize">무늬 크기 <small data-bgv="patternSize"></small></label><input type="range" id="patSize" min="0" max="2" step="1" data-bgr="patternSize">
+                    <label class="lab" for="patOp" style="margin-top:10px">무늬 진하기 <small data-bgv="patternOpacity"></small></label><input type="range" id="patOp" min="0" max="1" step="0.05" data-bgr="patternOpacity">
+                  </div>
+                  <details class="more sub" id="patMore"><summary>무늬 더 꾸미기 <small>무늬 색, 화면마다 넣을 곳</small></summary>
+                  <div class="field"><span class="lab">무늬 색 <small id="pcV">(도트·큐브·하트)</small></span>
+                    <div class="row"><input type="color" class="bgc" data-pc="0" aria-label="무늬 색 1"><input type="color" class="bgc" data-pc="1" aria-label="무늬 색 2"><input type="color" class="bgc" data-pc="2" aria-label="무늬 색 3"><button type="button" class="btn small ghost" id="pcAuto">자동</button></div></div>
+                  <div class="field"><span class="lab" id="lPaM">무늬 넣을 곳: 친구탭</span><div class="seg" role="group" aria-labelledby="lPaM" data-bgk="patternArea.main"></div>
+                    <span class="lab" id="lPaC" style="margin-top:10px">무늬 넣을 곳: 채팅방</span><div class="seg" role="group" aria-labelledby="lPaC" data-bgk="patternArea.chat"></div>
+                    <span class="lab" id="lPaP" style="margin-top:10px">무늬 넣을 곳: 잠금</span><div class="seg" role="group" aria-labelledby="lPaP" data-bgk="patternArea.passcode"></div></div>
+                  </details>
+                  <div class="field"><span class="lab">배경 색 <small id="bgColorV"></small></span>
+                    <div class="row"><input type="color" id="bgColor" class="bgc" aria-label="배경 색"><button type="button" class="btn small ghost" id="bgAuto">자동 (사진 색)</button></div></div>
+                  <div class="field"><span class="lab">내 사진 넣기 <small>(배경을 지우지 않고 그대로 깔아요)</small></span><div id="photoList"></div><p class="msg" id="msgBg" role="status"></p></div>
+                  <div class="field"><span class="lab" id="lCm">구석 캐릭터: 친구탭</span><div class="seg" role="group" aria-labelledby="lCm" data-bgk="corner.main"></div></div>
+                  <div class="field"><span class="lab" id="lCc">구석 캐릭터: 채팅방</span><div class="seg" role="group" aria-labelledby="lCc" data-bgk="corner.chat"></div></div>
+                  <div class="field"><span class="lab" id="lCs">구석 캐릭터 크기</span><div class="seg" role="group" aria-labelledby="lCs" data-bgk="corner.size"></div></div>
+                  <div class="field"><label class="lab" for="cOp">구석 캐릭터 진하기 <small data-bgv="corner.opacity"></small></label><input type="range" id="cOp" min="0.15" max="1" step="0.05" data-bgr="corner.opacity"></div>
+                </div>
+              </details>
+              <details class="more sub" id="slotMore">
+                <summary>자리별 그림 <small>(선택) 탭, 잠금, 프로필마다 다른 그림</small></summary>
+                <p class="hint">안 넣은 자리는 내 캐릭터로 자동으로 채워요. 넣은 그림도 배경은 자동으로 지워요.</p>
+                <div class="field"><button type="button" class="toggle" data-toggle="slotsArePixel" aria-pressed="false">넣은 그림이 이미 도트예요 <small>(픽셀 아트 켰을 때)</small><i aria-hidden="true"></i></button></div>
+                <div id="slotList"></div>
+              </details>
+              <div class="field">
+                <span class="lab">색 <small>(사진에서 뽑았어요. 눌러서 바꿀 수 있어요)</small></span>
+                <div class="sw" id="swatches"></div>
+                <details class="more sub"><summary>색 더 보기 <small>테두리, 누른 말풍선, 키패드, 프로필 바탕</small></summary><div class="sw" id="swatchesMore" style="margin:6px 0 4px"></div></details>
+                <div class="row" style="margin-top:10px"><button type="button" class="btn small ghost" id="autoColor">자동 색으로 되돌리기</button></div>
+              </div>
+            </details>
+            <div class="field">
+              <label class="lab" for="themeName">테마 이름</label>
+              <input type="text" id="themeName" maxlength="24" autocomplete="off" placeholder="나의 테마">
+            </div>
+            <div class="nav"><button type="button" class="btn ghost" data-prev>이전</button><button type="button" class="btn primary" data-next>다음</button></div>
+            <div class="peek"><button type="button" class="btn small" id="peek">미리보기 보기 ↓</button></div>
+          </div>
+
+          <!-- 4 받기 -->
+          <div class="panel" data-step="4" hidden>
+            <h3>4. 받기</h3>
+            <p class="hint" id="getHint">전부 무료예요. 워터마크 없이 바로 받아요.</p>
+            <div class="row">
+              <button type="button" class="btn primary" id="getTheme">테마 받기 (무료)</button>
+            </div>
+            <p class="msg" id="msg4" role="status" aria-live="polite"></p>
+            <div class="files" id="files"></div>
+            <p class="hint" id="pcHint" hidden>PC라면: 받은 파일을 PC 카카오톡 '나와의 채팅'에 끌어 놓은 뒤, 아이폰 카카오톡에서 그 파일을 탭하세요.</p>
+
+            <div class="card" id="igDone" hidden>
+              <h3>다 됐어요!</h3>
+              <p class="hint">적용한 화면을 캡처해서 인스타에 올려 주세요. 새 템플릿 소식도 인스타에서 알려 드려요.</p>
+              <a class="btn small primary" data-ig href="#" target="_blank" rel="noopener" hidden>만든 테마 자랑하고 팔로우하기</a>
+            </div>
+
+            <div class="card">
+              <h3>설치 방법</h3>
+              <ol class="steps4">
+                <li>받은 .ktheme 파일을 카카오톡 '나와의 채팅'으로 보내요. 아이폰은 [카카오톡으로 보내기] → 카카오톡 → 나에게 보내기. 그 버튼이 없으면 [파일로 저장] 뒤 파일 앱의 다운로드 폴더에서 파일을 길게 눌러 공유 → 카카오톡 → 나에게 보내기. PC는 PC 카카오톡 나와의 채팅에 끌어 놓아요.</li>
+                <li>아이폰 카카오톡 나와의 채팅에서 파일을 탭한 뒤, 공유(또는 열기) 버튼에서 카카오톡을 골라요.</li>
+                <li>테마 적용 화면이 뜨면 적용을 눌러요. 안 뜨면 더보기 → 설정 → 화면 → 테마에서 골라요.</li>
+                <li>파일 이름 끝이 .zip 으로 바뀌었다면 파일 앱에서 이름 끝을 .ktheme 로 고친 뒤 다시 보내요.</li>
+              </ol>
+            </div>
+
+            <div class="card">
+              <h3>덤</h3>
+              <div class="row">
+                <button type="button" class="btn small" id="brag">자랑하기 (카드 이미지)</button>
+                <button type="button" class="btn small ghost" id="saveProj">프로젝트 저장 (.json)</button>
+              </div>
+              <p class="hint" style="margin-top:8px">프로젝트를 저장해 두면 카카오톡이 업데이트됐을 때 같은 테마를 다시 만들 수 있어요.</p>
+              <p class="msg" id="msgX" role="status"></p>
+            </div>
+            <div class="nav"><button type="button" class="btn ghost" data-prev>이전</button><span></span></div>
+          </div>
+        </div>
+
+        <aside class="b-preview" aria-label="미리보기">
+          <div id="buildPhone"></div>
+          <p class="cap">실제로 만들어진 그림 파일로 그린 미리보기예요.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" aria-labelledby="fTitle">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="fTitle">이런 테마가 돼요</h2></div>
+      <div class="grid3">
+        <div class="feat"><div class="ic">01 말풍선 위 캐릭터</div><h3>올라앉고, 빼꼼하고, 걸쳐요</h3><p>프사 옆 꼬마, 말풍선 빼꼼, 엎드려 걸치기, 올라앉기까지 네 가지 자리. 글이 길어도 찌그러지지 않게 맞춰 그려요.</p></div>
+        <div class="feat"><div class="ic">02 픽셀</div><h3>버튼 하나로 픽셀 아트</h3><p>사진을 도트 캐릭터로 바꿔요. 굵기 3단계, 말풍선까지 픽셀로 맞출 수 있어요.</p></div>
+        <div class="feat"><div class="ic">03 친구 캐릭터</div><h3>내 말풍선엔 나, 친구 말풍선엔 친구</h3><p>친구 캐릭터를 넣으면 받은 말풍선에서 친구 캐릭터가 말해요. 커플이면 상대 폰용 테마도 한 번에 만들어요.</p></div>
+      </div>
+      <div class="sec-head" style="margin:32px 0 12px"><h3>템플릿으로 시작해요</h3><p>고른 뒤에 크기, 테두리, 장식을 하나씩 바꿀 수 있어요. 눌러 보면 만들기에 바로 들어가요.</p></div>
+      <div class="tpl-strip" id="tplStrip"><p class="hint">프사 옆 꼬마 · 말풍선 빼꼼 · 엎드려 걸치기 · 올라앉기 · 픽셀 도트 외 여러 템플릿</p></div>
+    </div>
+  </section>
+
+  <section id="free" aria-labelledby="oTitle">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="oTitle">무료 · 오픈소스</h2><p>돈 받지 않아요. 가격표도, 키도, 워터마크도 없어요. 코드는 MIT 라이선스로 공개돼 있어요.</p></div>
+      <div class="grid3">
+        <div class="feat"><div class="ic">내 그림으로</div><h3>그림은 내가 넣어요</h3><p>사이트에는 데모 강아지 말고 다른 캐릭터가 없어요. 내가 그렸거나 쓸 권리가 있는 그림을 넣어 주세요.</p></div>
+        <div class="feat"><div class="ic">내 기기 안에서</div><h3>서버가 없어요</h3><p>그림 처리와 테마 만들기는 전부 브라우저 안에서 해요. 그림도 테마 파일도 어디에도 올라가지 않아요.</p></div>
+        <div class="feat"><div class="ic">같이 만들어요</div><h3>소스가 열려 있어요</h3><p>버그 제보, 새 템플릿, 캐릭터 팩 형식 개선 모두 환영해요. <a data-gh href="#" target="_blank" rel="noopener">GitHub</a>에서 만나요.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" aria-labelledby="qTitle">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="qTitle">자주 묻는 질문</h2></div>
+      <details><summary>어떻게 설치하나요?</summary>
+        <ol><li>받은 .ktheme 파일을 카카오톡 '나와의 채팅'으로 보내요. 아이폰에서 저장만 했다면 파일 앱의 다운로드 폴더에서 파일을 길게 눌러 공유 → 카카오톡 → 나에게 보내기.</li><li>나와의 채팅에서 파일을 탭한 뒤, 공유(또는 열기) 버튼에서 카카오톡을 골라요.</li><li>테마 적용 화면에서 적용을 누르면 끝이에요.</li><li>이름 끝이 .zip 으로 바뀌었다면 .ktheme 로 고쳐 주세요.</li></ol></details>
+      <details><summary>안드로이드에서도 되나요?</summary><p>아니요. 아이폰(iOS) 카카오톡 전용이에요. 안드로이드는 지원하지 않아요.</p></details>
+      <details><summary>정말 무료예요?</summary><p>네. 비영리 오픈소스라 결제, 키, 워터마크가 전부 없어요. 받은 테마도 처음부터 완성본이에요.</p></details>
+      <details><summary>친구마다 다른 캐릭터를 넣을 수 있나요?</summary><p>아니요. 카카오톡 테마 규격상 받은 말풍선 그림은 하나뿐이라, 테마 하나에 친구 캐릭터 하나예요. 모든 친구의 말풍선에 같은 캐릭터가 나와요.</p></details>
+      <details><summary>제 그림이 서버로 가나요?</summary><p>아니요. 서버가 아예 없어요. 그림 처리와 테마 만들기는 전부 내 브라우저 안에서 해요.</p></details>
+      <details><summary>아무 캐릭터나 넣어도 되나요?</summary><p>내가 저작권을 가졌거나 쓰도록 허락받은 그림만 넣어 주세요. 남의 캐릭터를 쓰면 그 책임은 넣은 사람에게 있어요. 만든 테마는 나 혼자 쓰는 걸 권해요. 팔거나 퍼뜨리지 마세요.</p></details>
+      <details><summary>캐릭터 팩이 뭐예요?</summary><p>pack.json 하나와 그림들을 묶어 캐릭터, 친구 캐릭터, 자리별 그림, 색을 한 번에 채우는 방법이에요. 만드는 법은 GitHub 의 docs/PACKS.md 에 있어요.</p></details>
+      <details><summary>카카오톡이 업데이트되면요?</summary><p>저장한 프로젝트(.json)를 불러와 다시 받으면 새 규격으로 만들어져요. 다만 카카오톡이 사설 테마 방식을 바꾸거나 막을 수도 있어요.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="row"><span class="free">무료 · 오픈소스 (MIT)</span><a data-gh href="#" target="_blank" rel="noopener">GitHub</a><a href="terms.html">이용약관 · 이미지 정책</a></p>
+    <p><a class="btn small primary" data-ig href="#" target="_blank" rel="noopener" hidden>만든 테마 자랑하고 팔로우하기</a></p>
+    <p>톡꾸 키트는 카카오톡 iOS 테마 파일(.ktheme) 제작 도구이며, ㈜카카오와 무관한 비영리 오픈소스 도구입니다. 카카오톡은 ㈜카카오의 상표입니다.</p>
+    <p>© 2026 Tokku Kit contributors</p>
+  </div>
+</footer>
+</body>
+</html>

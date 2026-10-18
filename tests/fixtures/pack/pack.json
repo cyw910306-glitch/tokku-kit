@@ -1,0 +1,19 @@
+{
+  "tokkuPack": 1,
+  "name": "테스트 팩",
+  "char": "char.png",
+  "friend": "friend.png",
+  "options": { "layout": "stand", "charSize": "l", "background": { "pattern": "cubes" } },
+  "colors": { "accent": "#3366CC" },
+  "slots": {
+    "profile": "friend.png",
+    "tabSelected": { "chats": "friend.png" },
+    "passcodeSelected": [null, null, null, "friend.png"],
+    "bubble": { "stand": "friend.png" },
+    "nope": "friend.png"
+  },
+  "variants": [
+    { "id": "i", "name": "일러스트" },
+    { "id": "p", "name": "픽셀", "char": "px/char.png", "slots": { "profile": "px/profile.png" }, "slotsArePixel": true, "options": { "pixelChar": true } }
+  ]
+}

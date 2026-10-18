@@ -1,0 +1,10 @@
+{
+  "name": "tokku-kit",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen-spec": "node scripts/gen-spec.mjs",
+    "test": "node --test tests/",
+    "e2e": "node tests/e2e.mjs"
+  }
+}
