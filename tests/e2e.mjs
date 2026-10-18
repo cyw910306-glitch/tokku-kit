@@ -70,7 +70,8 @@ async function buildInPage(page, kind, opts, withAssets = false) {
       const H = await load('hotteok');
       const photo = await E.decodeImage(await (await fetch('/og.png')).blob());
       assets = { bgMain: photo, bgChat: photo, bgPasscode: photo,
-        slots: { profile: H, icon: H, tabSelected: { chats: H }, tabNormal: { friends: H }, passcodeSelected: [H, null, null, H], passcodeArt: H, cornerMain: H, bubble: { peek: H, hang: H, stand: H } } };
+        slots: { profile: H, icon: H, tabSelected: { chats: H }, tabNormal: { friends: H }, passcodeSelected: [H, null, null, H], passcodeArt: H, cornerMain: H, bubble: { peek: H, hang: H, stand: H },
+          tabNormalAll: H, passcodeAll: { normal: H } } }; // 일괄 칸 (모든 탭 / 잠금 4칸)
     }
     if (kind === 'couple') {
       const B = await load('hotteok');
@@ -142,8 +143,9 @@ async function pageChecks(browser, bname, results) {
       await page.click('[data-bgk="photo.main.fit"] button[data-v="contain"]');
       await page.fill('#blur-main', '4'); await page.locator('#blur-main').dispatchEvent('input');
       await page.click('#slotMore summary');
-      for (const sl of ['profile', 'tabSelected.chats', 'passcodeSelected.3']) await page.setInputFiles(`[data-slot="${sl}"] input[type=file]`, HOT);
+      for (const sl of ['profile', 'tabSelected.chats', 'passcodeSelected.3', 'tabNormalAll']) await page.setInputFiles(`[data-slot="${sl}"] input[type=file]`, HOT);
       await page.waitForSelector('[data-slot="passcodeSelected.3"].on');
+      await page.waitForSelector('[data-slot="tabNormalAll"].on');
       await page.fill('#themeName', 'E2E 테마');
       const pressed = await page.getAttribute('[data-toggle="pixelChar"]', 'aria-pressed');
       await page.waitForTimeout(400); // 디바운스(300ms) 뒤 다시 그리기 시작
@@ -158,7 +160,7 @@ async function pageChecks(browser, bname, results) {
       const pj = join(OUT, `${bname}-v3-project.json`);
       await pdl.saveAs(pj);
       const J = JSON.parse(readFileSync(pj, 'utf8'));
-      const saveOk = J.v === 3 && Object.keys(J.photos).join() === 'main' && Object.keys(J.slots).sort().join() === 'passcodeSelected.3,profile,tabSelected.chats'
+      const saveOk = J.v === 3 && Object.keys(J.photos).join() === 'main' && Object.keys(J.slots).sort().join() === 'passcodeSelected.3,profile,tabNormalAll,tabSelected.chats'
         && J.options.background.pattern === 'grid+stars' && J.options.background.corner.main === 'tl';
       results.rows.push({ browser: bname, check: '배경·자리별 그림 → 엔진 인자, v3 저장', ok: wantBg(prev) && saveOk,
         detail: `미리보기 인자 ${wantBg(prev) ? 'OK' : JSON.stringify(prev)}, 저장 v${J.v} photos [${Object.keys(J.photos)}] slots [${Object.keys(J.slots)}] ${(readFileSync(pj).length / 1024) | 0}KB` });
@@ -247,7 +249,7 @@ async function pageChecks(browser, bname, results) {
           tl: document.querySelector('[data-bgk="corner.main"] button[data-v="tl"]').getAttribute('aria-pressed'),
           photo: !document.querySelector('[data-photo="main"] .pth').hidden, slots: [...document.querySelectorAll('[data-slot].on')].map(e => e.dataset.slot).sort(), call: window.__calls.at(-1) }));
         results.rows.push({ browser: bname, check: 'v3 프로젝트 불러오기', ok: st.msg === '프로젝트를 불러왔어요.' && st.pat === 'true' && st.tl === 'true' && st.photo
-          && st.slots.join() === 'passcodeSelected.3,profile,tabSelected.chats' && wantBg(st.call), detail: `무늬 ${st.pat}, 구석 tl ${st.tl}, 사진 ${st.photo}, 칸 [${st.slots}], 인자 ${wantBg(st.call) ? 'OK' : JSON.stringify(st.call)}` });
+          && st.slots.join() === 'passcodeSelected.3,profile,tabNormalAll,tabSelected.chats' && wantBg(st.call), detail: `무늬 ${st.pat}, 구석 tl ${st.tl}, 사진 ${st.photo}, 칸 [${st.slots}], 인자 ${wantBg(st.call) ? 'OK' : JSON.stringify(st.call)}` });
         const sw4 = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
         if (sw4[0] > sw4[1]) { r.ok = false; r.detail += `, v3 뒤 scroll ${sw4[0]}/${sw4[1]}`; }
       }
@@ -325,9 +327,13 @@ async function buildChecks(browser, bname, results) {
     jobs.push(['single', { name: `젤리 ${layout} ${charSize}${pixelChar ? ' pc' : ''}${pixelBubble ? ' pb' : ''}`, id: ID, layout, charSize, pixelChar, pixelBubble,
       bubbleShape: E.SH[i % E.SH.length], outline: E.O[i % E.O.length], outlineColor: i % 2 ? 'dark' : 'auto', deco: E.D[i % E.D.length], fillTone: E.F[i % E.F.length], preset: 'cream-dots' }]);
   }
-  for (const t of E.T) jobs.push(['single', { ...t.opts, name: `템플릿 ${t.id}`, id: ID, preset: 'pastel-check' }]);
+  for (const t of E.T) jobs.push(['single', { ...t.opts, background: t.bg, name: `템플릿 ${t.id}`, id: ID, preset: 'pastel-check' }]);
   jobs.push(['couple', { name: '젤리 호떡', id: ID, layout: 'perch', preset: 'pastel-check' }]);
   jobs.push(['single', { name: '젤리 레트로 픽셀', id: ID, layout: 'perch', preset: 'retro-game', pixelChar: true, pixelBubble: true }]);
+  // 새 옵션 조합 고정 표본: 픽셀 + 가운데 빼꼼 + 02 빼꼼 / 커플 올라앉기 + 02 빼꼼 + 파스텔·먹색·키패드 / 무지개 헤이즈 3화면
+  jobs.push(['single', { name: '젤리 픽셀 가운데 빼꼼', id: ID, layout: 'peek', peekPos: 'center', groupChar: 'peek', pixelChar: true, pixelBubble: true, preset: 'cream-dots' }]);
+  jobs.push(['couple', { name: '젤리 호떡 포스트잇', id: ID, layout: 'perch', groupChar: 'peek', bubbleShape: 'note', outline: 'none', fillTone: 'pastel', textTone: 'mono', keypadTone: 'char', preset: 'pastel-check' }]);
+  jobs.push(['single', { name: '젤리 무지개', id: ID, layout: 'hang', groupChar: 'peek', preset: 'cream-dots', background: { pattern: 'wobble-grid+sprinkle-hearts', haze: { main: 'rainbow', chat: 'rainbow', passcode: 'rainbow' } } }]);
   // 배경 커스텀 + 사진 + 자리별 그림 (일반 / 픽셀 / 커플)
   const BG = { pattern: 'cubes', patternSize: 'l', color: '#F4E9DD', photo: { chat: { fit: 'contain', blur: 6, dim: 0.3 } }, corner: { main: 'tl', chat: 'none', size: 's', opacity: 0.6 } };
   jobs.push(['single', { name: '젤리 배경 사진', id: ID, layout: 'peek', preset: 'cream-dots', background: BG }, true]);

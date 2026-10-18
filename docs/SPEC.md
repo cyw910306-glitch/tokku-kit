@@ -46,11 +46,15 @@ Options = {
   preset: 'cream-dots',         // 'cream-dots' | 'pastel-check' | 'retro-game' | 'plain-minimal'
   layout: 'perch',              // 말풍선 위 캐릭터: 'none' | 'perch'(올라앉기) | 'peek'(빼꼼, 몸통 뒤) | 'hang'(걸치기, 상자 아래 ~18% 만 테두리 앞으로) | 'stand'(프사 옆 꼬마)
   charSize: 'm',                // 's' | 'm' | 'l' : 말풍선 W·H·X·Y·인셋을 presets.bubbleGeometry 가 다시 계산
-  bubbleShape: 'round',         // 'round'(반경 12/10) | 'soft'(6) | 'square'(2). pixelBubble 이 우선
-  outline: 'normal',            // 'thin' 0.8 | 'normal' 1.2 | 'thick' 2.2 pt (받은 쪽 +0.3), 픽셀 1/1/2칸
+  bubbleShape: 'round',         // 'round'(반경 12/10) | 'soft'(6) | 'square'(2) | 'note'(포스트잇: 반경 0, 꼬리·하이라이트 없음). pixelBubble 이 우선
+  outline: 'normal',            // 'thin' 0.8 | 'normal' 1.2 | 'thick' 2.2 pt (받은 쪽 +0.3), 픽셀 1/1/2칸 | 'none' 0 (받은 쪽도 0, 면 색만)
   outlineColor: 'auto',         // 'auto'(sendLine/recvLine) | 'dark'(text)
   deco: 'none',                 // 'none' | 'sparkle' | 'heart' | 'star' | 'note' : 캐릭터 반대쪽 위 cap 안 (01 만, accent 색)
-  fillTone: 'palette',          // 'palette' | 'white' | 'cream' : 말풍선 면 (사용자 색보다 우선)
+  fillTone: 'palette',          // 'palette' | 'white' | 'cream' | 'pastel' : 말풍선 면 (사용자 색보다 우선). pastel = 보낸 쪽 sendFill 그대로, 받은 쪽 = sendFill 색상환 +120도 L .93 C .04~.05
+  groupChar: 'none',            // 'none' | 'peek' : 이어 보낸(02) 말풍선 위 작은 빼꼼 (xs 상자, 꼬리·장식 없음). stand 에서는 안 씀 (02 정렬 띠 우선)
+  peekPos: 'corner',            // 'corner' | 'center' : 빼꼼 자리 (layout peek 의 01, groupChar peek 의 02). 다른 레이아웃은 그대로
+  textTone: 'palette',          // 'palette' | 'mono' : mono = text #383838, muted #5E5E5E, 목록 선택 배경 text 알파 .05, 입력창 보내기·버튼·섹션 제목·공유바 이름 = text (사용자 색보다 우선)
+  keypadTone: 'palette',        // 'palette' | 'char' : char = 잠금 키패드 배경(keypad) = 캐릭터 대표색(면 성향 적용 전 sendFill), 키패드 눌림 = 흰 원
   pixelChar: false, grid: 48,   // 캐릭터 픽셀화 on/off, 격자 32|48|64 (긴 변 칸 수)
   pixelBubble: false,           // 말풍선 픽셀 on/off
   colors: null,                 // null = 자동(palette.derive). 또는 Palette 객체(사용자가 스와치 수정)
@@ -59,14 +63,15 @@ Options = {
 }
 // 배경 (presets.resolveBackground 가 검사·기본값 채움. 같은 결과를 다시 넣어도 같음)
 Background = {
-  pattern: 'dots'|'check'|'grid'|'stars'|'hearts'|'cubes'|'none',   // '+' 로 겹침 가능. 기본 = 프리셋: cream-dots→dots, pastel-check→check, retro-game→'grid+stars', plain-minimal→none
+  pattern: 'dots'|'check'|'grid'|'stars'|'hearts'|'cubes'|'wobble-grid'|'sprinkle-hearts'|'none',   // '+' 로 겹침 가능 (예 'wobble-grid+sprinkle-hearts'). 기본 = 프리셋: cream-dots→dots, pastel-check→check, retro-game→'grid+stars', plain-minimal→none
   patternSize: 's'|'m'|'l',      // 0.75 / 1 / 1.4 배
-  patternOpacity: null|0~1,      // null = 무늬 기본(PATTERN_ALPHA: dots .24, check .3, grid .1, stars .28, hearts .22, cubes .16). 겹친 무늬는 첫 무늬 기준 비율
-  patternColors: null|['#RRGGBB' x1~3],   // 무늬 색 직접 (dots·cubes·hearts 가 차례로 돌려 씀). null = 팔레트 (cubes 는 accent 색상환 3등분)
+  patternOpacity: null|0~1,      // null = 무늬 기본(PATTERN_ALPHA: dots .24, check .3, grid .1, stars .28, hearts .22, cubes .16, wobble-grid .2, sprinkle-hearts .9). 겹친 무늬는 첫 무늬 기준 비율
+  patternColors: null|['#RRGGBB' x1~3],   // 무늬 색 직접 (dots·cubes·hearts·sprinkle-hearts 가 차례로 돌려 씀). null = 팔레트 (cubes 는 accent 색상환 3등분)
   patternArea: { main|chat: 'full'|'top'|'none', passcode: 'full'|'none' },   // 무늬 넣을 곳. full = 헤더 아래 전체, top = y60~420 띠만 (BG.topBand), 기본 전부 full
   color: null|'#RRGGBB',         // null = palette.bg
   photo: { main|chat|passcode: { fit: 'cover'|'contain', blur: 0~12 (pt), dim: 0~0.8 (기본 0.15), auto: true } },   // assets 의 사진이 있을 때만. auto = 글자 대비 모자라면 dim 자동 상향 (최대 .85)
   corner: { main: 'br'|'bl'|'tr'|'tl'|'none' (기본 br), chat: (기본 bl), size: 's'|'m'|'l', opacity: null|0.15~1 (null = main .42, chat .38) },
+  haze: { main|chat|passcode: 'none'|'rainbow' },   // 무지개 헤이즈 (흐린 파스텔 무지개 + 구름). 배경색 위·무늬 아래, 사진이 있으면 사진 우선. 기본 전부 none
 }
 // 배경 사진·자리별 그림 (전부 선택, 빈 자리 = 예전 그림). 모르는 이름·깨진 Img 는 오류 (checkAssets)
 Assets = {
@@ -75,7 +80,10 @@ Assets = {
     profile, icon,                                    // 기본 프로필, 테마 아이콘
     tabSelected: {friends, chats, now, shopping, call, more},  // 없으면 캐릭터 + accent 배지. 있으면 그 그림만 (배지 없음)
     tabNormal:   {friends, chats, now, shopping, call, more},  // 없으면 코드 라인 아이콘 (muted). Piccoma·Local = Now 복사
+    tabSelectedAll, tabNormalAll,                     // 일괄: 그 그림 한 장으로 6탭 전부 (칸마다 넣은 그림이 있으면 그 칸은 그게 우선)
     passcodeSelected: [s1, s2, s3, s4],              // 없으면 1~3 빼꼼 크롭, 4 전신+반짝이. 있으면 132 칸 가운데 (pad 0.02)
+    passcodeNormal: [s1, s2, s3, s4],                // 안 누른 칸 (없으면 accent 링). 있으면 132 칸 가운데
+    passcodeAll: { normal, selected },               // 일괄: 잠금 4칸 같은 그림 (칸마다 넣은 그림이 우선). checkAssets 가 펼쳐서 넘김
     passcodeArt,                                      // 잠금 배경 아래 가운데 그림
     cornerMain, cornerChat,                           // 친구탭·채팅방 배경 구석 그림 (없으면 캐릭터)
     bubble: {perch, peek, hang, stand},              // 그 레이아웃일 때만 01 말풍선 캐릭터 대신. peek slot 은 이미 빼꼼 그림이라 위 65% 크롭 안 함
@@ -97,7 +105,8 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
 ```
 - 브라우저 캔버스는 `render.js` 안의 `makeCanvas(w,h)` 하나로만 (OffscreenCanvas 우선, 없으면 document.createElement). `imageSmoothingEnabled` 는 픽셀 그림일 때 false.
 - iOS 메모리: 큰 캔버스(1125x2250, 1200x1200)는 하나씩 만들고 toBlob 후 width=height=0 으로 해제.
-- `meta` = { bubbles: {'01': B, '02': B} (B = {W,H,X,Y,top,ins:[t,l,b,r]} pt, 보낸 쪽 기준), palette, themeId, themeName }.
+- `meta` = { bubbles: {'01': B, '02': B} (B = {W,H,X,Y,top,ins:[t,l,b,r]} pt, 보낸 쪽 기준), palette, textTone, themeId, themeName }. buildCss 는 textTone 'mono' 일 때 템플릿의 선택 배경·보내기 버튼·섹션 제목·공유바 이름 줄만 바꾼다 (palette 면 예전 CSS 그대로).
+- 템플릿 `TEMPLATES[i].bg` (선택) = 그 템플릿이 까는 배경 (Background 일부). UI 는 지금 배경 위에 덮는다 (사진·색·구석은 그대로). 포스트잇 계열 = 채팅방 손그림 격자(+하트), 친구탭·잠금 무지개 헤이즈.
 
 ## 3. 규격 (기준 구현과 동일, 수치는 presets.js 한 곳)
 - 파일 66장 = 공식 샘플(`tests/fixtures/ref-images.json`)과 이름·크기 동일. 예외: 말풍선 8종은 프리셋 크기.
@@ -127,6 +136,9 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
   - 캐릭터 역할: buildTheme(charA, charB) 의 charB = 받은 말풍선(친구) 캐릭터, charA = 보낸 말풍선(내) 캐릭터. 탭·프로필·아이콘·잠금·배경 구석은 전부 charA (렌더 테스트로 고정).
   - 카카오 규격 한계 (UI 가 화면으로 안내): 받은 말풍선 그림은 친구마다 다르게 할 수 없다. 테마 하나에 '친구 캐릭터' 하나.
   - 위 표는 charSize 'm' 값. 모든 크기·레이아웃은 `bubbleGeometry(layout, charSize, shape, pixel)` 가 계산 (perch/m = 64×58 그대로, none = 40×35/40×36 그대로). 템플릿은 `TEMPLATES` (presets.js).
+  - note (포스트잇, 레퍼런스 실측 기법): 각진 몸통(반경 0), 꼬리·하이라이트 없음. 몸통 x 0~W-6 은 다른 모양과 같아서(꼬리 자리 6pt 는 비움) 인셋·늘이는 점 규칙이 그대로다. outline 'none' 이면 면 색만 (외곽선 침식 0). 흰 배경에서 받은 쪽이 묻히지 않게 템플릿은 fillTone 'pastel'.
+  - peekPos center: 상자 x = 16 (CENTER_L), X = 16 + w + 2, W = X + 20. 최소 폭에서 상자 가운데 = 몸통 가운데 ((W-6)/2), 글자 틀 12pt 도 몸통 가운데 (ins 왼쪽 = (W-6)/2 - 6, 합은 W-12 그대로). 늘이는 열이 상자 오른쪽이라 긴 글에서는 캐릭터가 보낸 쪽은 왼쪽, 받은 쪽은 오른쪽 끝 쪽에 남는다 (9-slice 늘이는 열이 하나뿐이라 생기는 한계).
+  - groupChar peek (02 작은 빼꼼): 02 = peek 규격(xs: 상자 22x16, peekPos 따름), 꼬리·장식 없음. 몸통 꼬리 쪽 끝이 W-6 으로 01 과 같아서 카카오가 01·02 를 같은 x 에 놓아도 몸통이 정렬된다 (단위 테스트로 고정). 그림 = 그 쪽 캐릭터의 빼꼼 크롭 (레이아웃이 peek 이고 bubble.peek slot 이 있으면 그 slot 그대로).
   - peek: 위 65% 크롭(PEEK_CROP, 대략 턱까지)을 먼저 그리고 몸통을 그 위에. 상자 아래 2~4pt 만 몸통 뒤로 숨어 얼굴 전체가 테두리 위로 보임. hang: 상자를 높이 둬서(top = 상자 높이의 ~82%) 아래 ~18% (앞발) 만 테두리에 걸치게 앞에 그림. 몸통에 가려지는 띠가 없어야 함 (있으면 앞발이 몸에서 떨어져 보임, 단위 테스트가 막음). 둥근 외곽선은 원판 침식이라 굵어도 모서리가 늘이는 열·행으로 번지지 않음.
   - 불변식 (단위 테스트 필수): 캐릭터·모서리 곡선·꼬리는 늘이는 열 X·행 Y 에서 1pt 이상 떨어짐 / 좌우 인셋 합 ≥ W-12, 위아래 ≥ H-20 / 텍스트 영역(인셋 안쪽)이 캐릭터 상자와 겹치지 않음.
   - 검사: @k 이미지에서 열 (X-1)k ~ (X+2)k 의 세로 픽셀 열이 전부 같고, 행도 같음(기준 구현 verify 와 동일).
@@ -142,19 +154,24 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
   - mainBg/chatroomBg 1125x2250 (@3x만): bg + 프리셋 패턴 + 구석 캐릭터(투명도 0.35~0.45, 목록·말풍선 글자 영역 피함: main 은 오른쪽 아래, chat 은 왼쪽 아래). 위 330px(헤더)는 무늬 없이.
   - passcodeBg 1200x1200: bg + 패턴(위쪽) + 아래 가운데 캐릭터, 맨 아래 300px 는 keypad 색으로 그라데이션(이음매 없음).
   - profileImg01 360: Palette.profileBg (없으면 bg 보다 살짝 진한 틴트) + 캐릭터.
-  - passcodeImgCode01~04 132: accent 링 도트. Selected 1~3: 캐릭터 위 65% 크롭(빼꼼), 4: 전신 + 반짝이.
-  - passcodeKeypadPressed 180: sendFill 원(알파 0.9).
+  - passcodeImgCode01~04 132: accent 링 도트 (passcodeNormal slot 이 있으면 그 그림). Selected 1~3: 캐릭터 위 65% 크롭(빼꼼), 4: 전신 + 반짝이.
+  - passcodeKeypadPressed 180: sendFill 원(알파 0.9). keypadTone 'char' 면 흰 원 (키패드가 sendFill 이라).
   - findBtnAddFriend 84x68/126x102: sendFill 알약 + 사람+플러스(text).
   - 캐릭터가 픽셀이면 코드 아이콘·도트·버튼도 1pt=1px 로 그린 뒤 알파 이진화 + nearest 확대.
 - 프리셋 4종 (색은 Palette 에서, 패턴만 다름): cream-dots(작은 둥근 사각 도트 3색 엇갈림), pastel-check(연한 체크), retro-game(픽셀 격자 선 + 별 도트, 픽셀 UI 어울림), plain-minimal(무늬 없음).
-- 무늬 7종: dots(위), check(위), grid(격자 선), stars(십자 5칸 도트 별), hearts(작은 하트, accent/sendLine 번갈아), cubes(3색 둥근 사각, 크기·간격은 dots 와 같음. 기본 색 = accent 색상환 3등분 L .74, patternColors 로 직접), none.
+- 무늬 9종: dots(위), check(위), grid(격자 선), stars(십자 5칸 도트 별), hearts(작은 하트, accent/sendLine 번갈아), cubes(3색 둥근 사각, 크기·간격은 dots 와 같음. 기본 색 = accent 색상환 3등분 L .74, patternColors 로 직접),
+  wobble-grid(손그림 격자: 96px 간격 선, 90px 마다 이음점을 ±2.6px 흔들고 2차 곡선으로 이음, line 색, 시드 17), sprinkle-hearts(460px 칸마다 60% 확률로 작은 하트 하나, 칸 안 위치·크기 12~19px·기울기 무작위, 파랑·분홍·연두·노랑 파스텔 4색, 시드 29), none.
+  두 무늬는 mulberry32 고정 시드라 같은 입력 = 같은 바이트. 구석 그림 자리 비우기는 흩뿌린 무늬만 (wobble-grid 가 있으면 check·grid 처럼 그대로).
+- 무지개 헤이즈(haze rainbow): 저채도 무지개 5색(OKLCH L .9 C .06) 큰 원형 그라데이션 + 오른쪽 밖에 중심을 둔 흐린 무지개 아치(원형 그라데이션 고리 4띠) + 흰 구름 4개를 고정 자리에 겹침. ctx.filter 없이 그라데이션만 (iOS 사파리, 결정적). 잠금 맨 아래 keypad 그라데이션은 헤이즈 위에도 그대로.
 - 키잉(`keying.removeEdgeBackground(img, tol)`): **네 변에서 시작하는 연결 영역만** 지움(BFS), 시작색과 RGB 거리 ≤ tol. 안쪽 같은 색은 안 지움. 가장자리 1px 페더 금지(알파 0/255). 투명 픽셀이 5% 이상이면 이미 투명 PNG 로 보고 건너뜀.
+- 글자 대비: textTone mono(#383838 / #5E5E5E)는 derive 결과의 bg·tabBg·sendFill·recvFill(pastel 포함)·keypad 와 본문 4.5, 보조 3 이상 (여러 색상 단위 테스트).
 - palette: 불투명 픽셀 샘플 ≤ 20000, k=5 k-means(고정 시드), 채도×빈도로 주색. OKLCH 로 bg(L≥0.96, C 낮게), sendFill(주색 L 0.88), line(L 0.55), text(L 0.27), muted(text 와 bg 사이, bg 대비 ≥ 3), accent(주색 L 0.5, bg 대비 ≥ 4.5). recvFill #FFFFFF, recvLine 은 bg 와 대비 ≥ 1.8 되게.
 - CSS ManifestStyle: name, version '26.8.0', url 'https://tokku-kit.vercel.app', author 'Tokku Kit', id.
 
 ## 4. UI (index.html + app.js + mock.js)
 - 한 페이지: ①랜딩 히어로(데모 젤리 테마 폰 목업 + [내 사진으로 만들기]) ②빌더 ③특징 3개(말풍선 위 캐릭터 / 픽셀 / 커플) ④무료·오픈소스 안내 ⑤FAQ(설치 방법, iOS 전용) ⑥푸터(약관 링크, ㈜카카오와 무관 고지).
 - 빌더 단계: 1 사진 넣기(내 캐릭터 필수, 상대 선택=커플) → 2 다듬기(투명 아니면 키잉 허용치 슬라이더 + 체커보드 미리보기, 투명이면 자동 건너뜀) → 3 꾸미기(프리셋 4, 말풍선 위 캐릭터 없음/올라앉기/바깥 서기, 캐릭터 픽셀 토글+격자 32/48/64, 말풍선 픽셀 토글, 색 스와치 5개 탭해서 바꾸기(input type=color), 테마 이름) → 4 받기.
+  더 꾸미기: 빼꼼 자리(모서리/가운데 위), 이어 보낸 말풍선에도 캐릭터(없음/작게 빼꼼, 서기면 끔), 말풍선 모양 포스트잇, 테두리 없음, 바탕색 파스텔 두 색, 글자 색(사진 색/무채색), 잠금 키패드 색(연하게/캐릭터 색). 배경: 무늬 손그림 격자·콕콕 하트·격자+하트, 무지개 헤이즈 화면별. 자리별 그림: '모든 탭 같은 그림'(평소·눌렀을 때), '4칸 같은 그림'(평소·눌렀을 때) 일괄 칸.
 - 미리보기: 폰 목업 탭 4개(친구 / 채팅 / 잠금 / 말풍선 테스트). 말풍선 테스트에 'ㅋ', 한 줄, 다섯 줄 메시지. 옵션 바꿀 때마다 디바운스(300ms) 후 buildTheme 다시 → object URL 교체(이전 URL revoke). 모바일: 단계 아래 미리보기, 데스크톱(≥960px): 오른쪽 고정.
 - 목업은 실제 생성 PNG 로 그림 (기준 구현 목업의 레이아웃·말풍선 border-image 규칙 재사용: min-width W / min-height H, slice = Y·3, (W-X-1)·3, (H-Y-1)·3, X·3 fill, 폭 Y,(W-X-1),(H-Y-1),X px, border-width = 인셋).
 - 받기:
@@ -173,6 +190,7 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
 ## 6. 테스트·검증 (통과해야 완료)
 - `node --test tests/` : pixelize(알파 0/255, 색수 ≤ colors+2), presets 불변식 4개(모든 레이아웃×스타일), palette WCAG, keying(가장자리 연결만 지움, 안쪽 같은 색 보존), pack(STORE, 최상위 구조), 배경 설정·구석 자리·assets 검사.
   - 렌더 검사(tests/.pw 의 playwright 로 헤드리스 chromium, 없으면 건너뜀): 회귀 = slot·배경 없이 만든 66장+CSS 픽셀 해시가 `tests/fixtures/render-golden.json`(기능 추가 전 엔진, chromium 130. 2026-10-18 stand 재설계로 retro 케이스의 01 말풍선 8장+CSS 만 다시 찍음, 나머지 3 케이스는 그대로. 같은 날 체험판 제거로 default·plain 의 배경 3장+CSS 다시 찍음. 같은 날 stand 02 정렬(pad)·서기 채팅방 구석 기본 오른쪽 아래로 retro 의 02 말풍선 8장+채팅방 배경+CSS 다시 찍음) 과 같음 / charB 는 받은 말풍선에만, 나머지는 charA / stand 레퍼런스 배치 / 체험판 모드 없음 / slot 마다 제 파일에만 쓰이고 나머지는 그대로 / 말풍선 slot 은 제 레이아웃에만, 커플 상대 폰은 받은 쪽에만 / 픽셀 slot 정수배·알파 0/255 / 무늬 7종 서로 다름·헤더 민무늬·none 단색·잠금 맨 아래 keypad / 사진 cover·contain·dim·헤더 띠·blur / 구석 4방향·none.
+  - 포스트잇·빼꼼 가운데·02 빼꼼·무채색 글자·키패드 캐릭터 색·일괄 slot·새 무늬 (2026-10-18 추가, 골든은 안 바뀜): note 꼬리 자리 비움·각진 모서리·none 은 면 색만 / center 상자·글자 틀이 몸통 가운데 / 02 빼꼼 몸통 끝이 01 과 같은 x / mono 대비(12 색상) + CSS 선택 배경·버튼·섹션 제목·공유바 이름만 바뀜 / ...All 펼침·칸별 우선 / sticky-peek 두 번 빌드 = 같은 해시, 키패드 = sendFill·눌림 흰 원, 새 무늬·헤이즈 서로 다른 그림.
   - 골든 다시 만들기(엔진 그림을 일부러 바꿨을 때만): `TOKKU_PUBLIC=<옛 public> UPDATE_GOLDEN=1 node --test tests/`.
 - `scripts/verify_ktheme.py x.ktheme` : zip 최상위 = KakaoTalkTheme.css + Images/ 만, 모든 엔트리 STORE, 파일 집합 = ref 66장, 말풍선 외 크기 = ref, CSS 참조 파일 존재, CSS 말풍선 cap/인셋 파싱 후 이미지 크기와 일치 + 늘이는 열·행 균일, ID 형식 `com.kakao.talk.theme.tokku[0-9a-f]{12}`.
 - `tests/e2e.mjs` (npx playwright@1.48.2, chromium + webkit 헤드리스, 창 띄우지 말 것): `python3 -m http.server` 로 public/ 서빙 → 데모 젤리로 layout 5 × pixelBubble 2 × charSize 3 표본(none 은 m 만, 모양·외곽선·장식·면 성향은 돌려 가며) 26 + TEMPLATES 전부 + 커플 1 + 레트로 픽셀 1 + 배경·사진·자리별 그림 3(일반, 픽셀, 커플) 을 엔진으로 빌드해 .ktheme 저장 → 전부 verify_ktheme.py 통과. 390px 폭에서 가로 스크롤 없음, 콘솔 에러 0, 랜딩 템플릿 썸네일 전부 로드, 옛 v1 프로젝트 .json 불러오기. UI 흐름에서 레트로 무늬(grid+stars)·구석 왼쪽 위·친구탭 사진·자리별 그림 3칸을 고른 뒤 엔진에 실제로 넘어간 인자(/engine/index.js 를 기록용 껍데기로 바꿔치기)를 확인하고, v3 프로젝트 저장 → 다시 불러오기로 복원.

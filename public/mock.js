@@ -45,9 +45,9 @@ const CSS = `
 .pm .who img{width:38px;height:38px;border-radius:14px;flex-shrink:0}
 .pm .who .nmx{font-size:12px;color:var(--p-muted);margin:0 0 3px 2px}
 .pm .input{position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;display:flex;gap:10px;align-items:flex-start;padding:10px 12px}
-.pm .input .plus{width:34px;height:34px;border-radius:50%;background:#F4EEEA;color:var(--p-accent);font-size:24px;display:grid;place-items:center}
+.pm .input .plus{width:34px;height:34px;border-radius:50%;background:#F4EEEA;color:var(--p-send,var(--p-accent));font-size:24px;display:grid;place-items:center}
 .pm .input .field{flex:1;height:36px;border-radius:18px;background:#F6F1EE;color:#8E7884;font-size:14px;padding:9px 14px}
-.pm .input .send{width:34px;height:34px;border-radius:50%;background:var(--p-accent);color:#fff;display:grid;place-items:center;font-size:15px}
+.pm .input .send{width:34px;height:34px;border-radius:50%;background:var(--p-send,var(--p-accent));color:#fff;display:grid;place-items:center;font-size:15px}
 .pm .art{position:absolute;top:0;left:0;width:375px;height:375px;background-position:center;background-size:cover}
 .pm .pt{position:absolute;top:120px;width:100%;text-align:center;font-size:17px}
 .pm .bul{position:absolute;top:160px;width:100%;display:flex;justify-content:center;gap:6px}
@@ -108,7 +108,7 @@ function screens(u, p, info, sel = 'friends') {
     chat: `<div class="bgimg" style="background-image:url('${u('chatroomBgImage')}')"></div><div class="status"></div>
       <div class="chdr">${friend}</div>
       <div class="msgs">
-        ${recv(u, info.friend || '호떡', '오늘 저녁에 산책 갈래?', '오후 4:02', info)}
+        ${recv(u, info.friend || '호떡', '산책 갈래?', '오후 4:02', info)}
         ${msg('r', '날씨 진짜 좋대!', { g: 1, ml: 1 })}
         ${msg('s', '좋아 좋아!!', { t: '오후 4:07' })}
         ${msg('s', '간식도 챙겨 갈게', { g: 1, t: '오후 4:07' })}
@@ -175,7 +175,7 @@ export function createPhone(host, { tab = 'chat', label = '테마 미리보기' 
   return {
     render(u, meta, info = {}) {
       const p = meta.palette;
-      phone.style.cssText += `;--p-bg:${p.bg};--p-tab:${p.tabBg};--p-text:${p.text};--p-muted:${p.muted};--p-accent:${p.accent};--p-line:${p.line};--p-keypad:${p.keypad}`;
+      phone.style.cssText += `;--p-bg:${p.bg};--p-tab:${p.tabBg};--p-text:${p.text};--p-muted:${p.muted};--p-accent:${p.accent};--p-line:${p.line};--p-keypad:${p.keypad};--p-send:${meta.textTone === 'mono' ? p.text : p.accent}`;
       const q = `.${cls} `, B = meta.bubbles;
       const files = Object.fromEntries(['Send01', 'Send02', 'Receive01', 'Receive02'].map(f => [f, u('chatroomBubble' + f)]));
       style.textContent = info.rules ? info.rules(meta, files, q) : bubbleRule(q + '.s .b', u('chatroomBubbleSend01'), B['01'], false) + bubbleRule(q + '.s.g .b', u('chatroomBubbleSend02'), B['02'], false) +

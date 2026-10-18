@@ -25,7 +25,9 @@
     "icon": "art/icon.png",
     "tabSelected": { "friends": "art/tab-friends.png", "chats": "art/tab-chats.png" },
     "tabNormal": { "friends": "art/tab-friends-line.png" },
+    "tabSelectedAll": "art/tab-hug.png", "tabNormalAll": "art/tab-face.png",
     "passcodeSelected": ["art/p1.png", null, null, "art/p4.png"],
+    "passcodeAll": { "normal": "art/lock-side.png", "selected": "art/lock-front.png" },
     "passcodeArt": "art/lock.png",
     "cornerMain": "art/corner.png", "cornerChat": "art/corner2.png",
     "bubble": { "perch": "art/perch.png", "peek": "art/peek.png", "hang": "art/hang.png", "stand": "art/stand.png" }
@@ -45,9 +47,9 @@
 | `name` | | 팩 이름 (상단 띠, 테마 이름 기본값). 40자까지 |
 | `char` | 예 | 내 캐릭터 = 보낸 말풍선 그림 경로 |
 | `friend` | | 친구 캐릭터 = 받은 말풍선 그림. 없으면 받은 쪽도 `char` |
-| `options` | | 엔진 Options 일부 (SPEC 2절): `layout charSize bubbleShape outline outlineColor deco fillTone grid preset pixelChar pixelBubble name background`. 모르는 값은 기본값 |
+| `options` | | 엔진 Options 일부 (SPEC 2절): `layout charSize bubbleShape outline outlineColor deco fillTone groupChar peekPos textTone keypadTone grid preset pixelChar pixelBubble name background`. 모르는 값은 기본값 |
 | `colors` | | Palette 일부 또는 전부 (`#RRGGBB`). 빈 키는 `char` 에서 자동. 하나라도 형식이 틀리면 전부 자동 |
-| `slots` | | 자리별 그림 경로. 키는 엔진 `assets.slots` 와 같다 (`passcodeSelected` 는 4칸 배열, 빈 칸 `null`). 모르는 키는 무시 |
+| `slots` | | 자리별 그림 경로. 키는 엔진 `assets.slots` 와 같다 (`passcodeSelected` 는 4칸 배열, 빈 칸 `null`). 모르는 키는 무시. 일괄 키: `tabSelectedAll` / `tabNormalAll` (한 장으로 6탭 전부), `passcodeAll: { normal, selected }` (잠금 4칸 같은 그림). 칸마다 넣은 그림이 있으면 그 칸은 그게 우선. 안 누른 잠금 칸은 `passcodeAll.normal` 로만 (칸별 `passcodeNormal` 은 팩에서 안 읽음) |
 | `slotsArePixel` | | slot 그림이 이미 도트 스프라이트면 `true` (정수배 nearest, 재격자화 안 함) |
 | `variants` | | 종류 (예: 일러스트/픽셀). `{id, name}` 필수, 나머지 키(`char friend options colors slots slotsArePixel`)는 위 값을 덮는다. `slots` 는 통째로 바꾸고, `options` 는 키 단위로 덮는다. 첫 번째가 기본. 8개까지 |
 

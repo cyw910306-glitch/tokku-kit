@@ -17,18 +17,28 @@ export const DEFAULTS = Object.freeze({
   colors: null,
   background: null,     // null = 프리셋 무늬. resolveBackground 가 채운다
   slotsArePixel: false, // slot 그림이 이미 픽셀 스프라이트면 true (재격자화 없이 정수배)
+  groupChar: 'none',    // 이어 보낸(02) 말풍선 위 작은 캐릭터: none | peek (서기에선 안 씀)
+  peekPos: 'corner',    // 빼꼼 자리: corner(왼쪽 위 모서리) | center(가운데 위). peek 레이아웃·02 빼꼼에만
+  textTone: 'palette',  // 글자 색: palette | mono (본문 #383838·보조 #5E5E5E, 선택 배경·보내기 버튼도 무채색)
+  keypadTone: 'palette', // 잠금 키패드 배경: palette | char (캐릭터 대표색 = 보낸 말풍선 파스텔, 눌림은 흰 원)
 });
 
 // 말풍선 위 캐릭터: 없음 / 올라앉기(앞) / 빼꼼(뒤, 위쪽만 보임) / 엎드려 걸치기(뒤 + 앞발만 앞) / 프사 옆 꼬마(바깥 서기)
 export const LAYOUTS = ['none', 'perch', 'peek', 'hang', 'stand'];
 export const CHAR_SIZES = ['s', 'm', 'l'];
-export const SHAPES = ['round', 'soft', 'square'];
-export const OUTLINES = { thin: 0.8, normal: 1.2, thick: 2.2 }; // 둥근 외곽선 pt (보낸 쪽). 받은 쪽은 +RECV_EXTRA
+// note = 포스트잇 (각진 모서리, 꼬리·하이라이트 없음). 외곽선 none 과 같이 쓰면 단색 면만
+export const SHAPES = ['round', 'soft', 'square', 'note'];
+export const OUTLINES = { thin: 0.8, normal: 1.2, thick: 2.2, none: 0 }; // 둥근 외곽선 pt (보낸 쪽). 받은 쪽은 +RECV_EXTRA (none 은 0 그대로)
 export const RECV_EXTRA = 0.3; // 흰 받은 말풍선은 밝은 배경에서 묻혀서 조금 더 굵게
-export const PIXEL_OUTLINE = { thin: 1, normal: 1, thick: 2 }; // 픽셀 말풍선 외곽선 칸 수
+export const PIXEL_OUTLINE = { thin: 1, normal: 1, thick: 2, none: 0 }; // 픽셀 말풍선 외곽선 칸 수
 export const OUTLINE_COLORS = ['auto', 'dark'];
 export const DECOS = ['none', 'sparkle', 'heart', 'star', 'note'];
-export const FILL_TONES = { palette: null, white: '#FFFFFF', cream: '#FFF6E0' };
+// pastel = 보낸 쪽은 팔레트 sendFill, 받은 쪽은 색상환 120도 돌린 연한 파스텔 (흰 배경에서 외곽선 없이도 보이게. render.applyFillTone)
+export const FILL_TONES = { palette: null, white: '#FFFFFF', cream: '#FFF6E0', pastel: 'pastel' };
+export const GROUP_CHARS = ['none', 'peek'];
+export const PEEK_POS = ['corner', 'center'];
+export const TEXT_TONES = { palette: null, mono: { text: '#383838', muted: '#5E5E5E' } };
+export const KEYPAD_TONES = ['palette', 'char'];
 export const GRIDS = [32, 48, 64];
 
 // 배경 프리셋 4종: 색은 Palette 에서, 무늬만 다름. pattern = background.pattern 기본값 ('+' 로 겹침)
@@ -40,9 +50,12 @@ export const PRESETS = {
 };
 
 // ---------- 배경 커스텀 (opts.background) ----------
-// 무늬 7종. cubes = 3색 둥근 사각 (accent 색상환 3등분, patternColors 로 직접). 기본 투명도 = 무늬별 값 (프리셋 그림 그대로)
-export const PATTERNS = ['dots', 'check', 'grid', 'stars', 'hearts', 'cubes', 'none'];
-export const PATTERN_ALPHA = { dots: 0.24, check: 0.3, grid: 0.1, stars: 0.28, hearts: 0.22, cubes: 0.16, none: 0 };
+// 무늬 9종. cubes = 3색 둥근 사각 (accent 색상환 3등분, patternColors 로 직접). 기본 투명도 = 무늬별 값 (프리셋 그림 그대로)
+// wobble-grid = 손그림처럼 살짝 삐뚤한 격자, sprinkle-hearts = 드문드문 불규칙 작은 하트 4색. 둘 다 시드 고정 난수 (같은 입력 = 같은 그림)
+export const PATTERNS = ['dots', 'check', 'grid', 'stars', 'hearts', 'cubes', 'wobble-grid', 'sprinkle-hearts', 'none'];
+export const PATTERN_ALPHA = { dots: 0.24, check: 0.3, grid: 0.1, stars: 0.28, hearts: 0.22, cubes: 0.16, 'wobble-grid': 0.2, 'sprinkle-hearts': 0.9, none: 0 };
+// 헤이즈 = 무늬 아래 까는 흐린 파스텔 무지개 + 구름 (화면마다 none | rainbow). 사진이 있으면 사진이 우선
+export const HAZES = ['none', 'rainbow'];
 export const PATTERN_SIZES = { s: 0.75, m: 1, l: 1.4 };
 export const CORNERS = ['br', 'bl', 'tr', 'tl', 'none'];
 export const CORNER_SIZES = { s: 0.7, m: 1, l: 1.3 };
@@ -89,7 +102,10 @@ export function resolveBackground(preset = 'cream-dots', bg = null) {
   for (const w of ['main', 'chat']) if (!CORNERS.includes(c[w])) throw new Error(`unknown corner ${c[w]}`);
   if (!CORNER_SIZES[c.size]) throw new Error(`unknown corner size ${c.size}`);
   const corner = { main: c.main, chat: c.chat, size: c.size, opacity: c.opacity == null ? null : range(c.opacity, 0.15, 1, 'corner opacity') };
-  return { pattern, patternSize, patternOpacity, patternColors: pc && [...pc], patternArea: { main: patternArea.main, chat: patternArea.chat, passcode: patternArea.passcode }, color, photo, corner };
+  const hz = { main: 'none', chat: 'none', passcode: 'none', ...(b.haze || {}) };
+  for (const w of ['main', 'chat', 'passcode']) if (!HAZES.includes(hz[w])) throw new Error(`unknown haze.${w} ${hz[w]}`);
+  return { pattern, patternSize, patternOpacity, patternColors: pc && [...pc], patternArea: { main: patternArea.main, chat: patternArea.chat, passcode: patternArea.passcode }, color, photo, corner,
+    haze: { main: hz.main, chat: hz.chat, passcode: hz.passcode } };
 }
 
 /** 무늬 겹 목록 [[무늬, 투명도]] (none 이면 빈 배열) */
@@ -100,7 +116,9 @@ export function patternLayers(bg) {
   return parts.map(p => [p, r === 1 ? PATTERN_ALPHA[p] : Math.min(1, PATTERN_ALPHA[p] * r)]);
 }
 
-// 템플릿 = 모양 옵션 묶음. 색은 강제하지 않는다 (팔레트는 사진에서 자동, 면 성향만 fillTone 으로)
+// 템플릿 = 모양 옵션 묶음. 색은 강제하지 않는다 (팔레트는 사진에서 자동, 면 성향만 fillTone 으로).
+// bg (선택) = 그 템플릿이 까는 배경 (opts.background 일부. UI 가 지금 배경에 덮어씀). 포스트잇 계열: 채팅방 손그림 격자, 친구탭·잠금 무지개 헤이즈
+const STICKY_BG = { pattern: 'wobble-grid+sprinkle-hearts', patternArea: { main: 'none', chat: 'full', passcode: 'none' }, haze: { main: 'rainbow', chat: 'none', passcode: 'rainbow' } };
 export const TEMPLATES = [
   { id: 'near-profile', name: '프사 옆 꼬마', desc: '프로필 사진 바로 옆에 캐릭터가 서서 말풍선으로 말해요. 하얀 말풍선, 굵은 손글씨 선.',
     opts: { layout: 'stand', charSize: 'l', bubbleShape: 'round', outline: 'thick', outlineColor: 'dark', deco: 'none', fillTone: 'white', pixelChar: false, pixelBubble: false } },
@@ -120,6 +138,12 @@ export const TEMPLATES = [
     opts: { layout: 'stand', charSize: 's', bubbleShape: 'square', outline: 'thick', outlineColor: 'dark', deco: 'none', fillTone: 'white', pixelChar: true, pixelBubble: true } },
   { id: 'tiny-note', name: '콩알 빼꼼', desc: '작은 캐릭터가 네모 말풍선 뒤에서 콧노래.',
     opts: { layout: 'peek', charSize: 's', bubbleShape: 'square', outline: 'thin', outlineColor: 'dark', deco: 'note', fillTone: 'white', pixelChar: false, pixelBubble: false } },
+  { id: 'sticky-peek', name: '포스트잇 빼꼼', desc: '네모난 포스트잇 뒤에서 가운데로 빼꼼, 이어 보낸 말풍선에도 작게 빼꼼. 손그림 격자에 하트, 글자는 차분한 먹색.',
+    opts: { layout: 'peek', peekPos: 'center', groupChar: 'peek', charSize: 'm', bubbleShape: 'note', outline: 'none', outlineColor: 'auto', deco: 'none', fillTone: 'pastel', textTone: 'mono', keypadTone: 'char', pixelChar: false, pixelBubble: false },
+    bg: STICKY_BG },
+  { id: 'sticky-perch', name: '포스트잇 올라앉기', desc: '네모난 포스트잇 모서리에 폭 올라앉았어요. 손그림 격자, 글자는 차분한 먹색.',
+    opts: { layout: 'perch', charSize: 'm', bubbleShape: 'note', outline: 'none', outlineColor: 'auto', deco: 'none', fillTone: 'pastel', textTone: 'mono', keypadTone: 'char', pixelChar: false, pixelBubble: false },
+    bg: { ...STICKY_BG, pattern: 'wobble-grid' } },
 ].map(t => ({ ...t, thumb: `templates/${t.id}.png` })); // 썸네일 = tests/gen-thumbs.mjs 가 데모 캐릭터로 만든 그림
 
 export const PIXEL_CELL = 2;       // 픽셀 말풍선 1칸 = 2pt
@@ -127,8 +151,9 @@ export const PIXEL_RADIUS = 3.6;   // 계단 모서리 반경 (칸)
 export const PERCH_CROP = 0.7;     // 옆으로 퍼진 그림은 가운데 70% 까지만 가로 크롭
 export const PEEK_CROP = 0.65;     // 빼꼼: 그림 위 65% (대략 턱까지) 만 쓴다. 자른 선은 몸통 뒤로 숨는다
 
-const SIZE_F = { s: 0.75, m: 1, l: 1.3 };
-const RADIUS = { soft: 6, square: 2 }; // round = 12 (40pt 짜리) / 10
+const SIZE_F = { xs: 0.6, s: 0.75, m: 1, l: 1.3 }; // xs = 02 빼꼼 전용 (옵션 charSize 는 s|m|l)
+const RADIUS = { soft: 6, square: 2, note: 0 }; // round = 12 (40pt 짜리) / 10
+const CENTER_L = 16; // 빼꼼 center: 상자 왼쪽 x. 최소 폭(W = X + 20)일 때 상자 가운데 = 몸통 가운데 ((W - 6) / 2)
 const ev = v => 2 * Math.round(v / 2); // 픽셀 말풍선 2pt 칸에 맞게 짝수
 // 캐릭터 상자 기본 크기 (m, pt). top = 몸통 윗변이 상자 높이의 어디를 지나는지
 const CHAR_BASE = {
@@ -148,8 +173,9 @@ const NONE = {
  * r = 둥근 모서리 반경, box = 캐릭터 상자, deco = 장식 자리 {x,y,s}. perch/m/round = 기준 표 (64x58, X44 Y32).
  * 규칙: 캐릭터 상자는 늘이는 열 왼쪽(X-2 까지)·행 위(Y-2 까지), 텍스트는 상자 아래, 인셋 합 = W-12 / >= H-20.
  */
-export function bubbleGeometry(layout = 'perch', charSize = 'm', shape = 'round', pixel = false) {
+export function bubbleGeometry(layout = 'perch', charSize = 'm', shape = 'round', pixel = false, peekPos = 'corner') {
   if (!SHAPES.includes(shape)) throw new Error(`unknown bubbleShape ${shape}`);
+  if (!PEEK_POS.includes(peekPos)) throw new Error(`unknown peekPos ${peekPos}`);
   let g, box = null, deco;
   if (layout === 'none') {
     g = { ...NONE[pixel ? 'pixel' : 'round'] };
@@ -164,17 +190,21 @@ export function bubbleGeometry(layout = 'perch', charSize = 'm', shape = 'round'
       const bx = STAND_BODY, X = 14, W = bx + 2 + w, top = h + 8, Y = top + 16;
       g = { W, H: Y + 20, X, Y, top, bx, ins: pixel ? [top + 10, 12, 8, W - 22] : [top + 10, 11, 8, W - 23] };
       box = { x: W - w, y: 0, w, h };
-    } else { // 왼쪽 위 모서리에 (올라앉기 / 빼꼼 / 걸치기)
-      const top = ev(h * base.top), X = w + 4, W = X + 20, Y = Math.max(top + 16, h + 2), t = h + 2;
+    } else { // 왼쪽 위 모서리에 (올라앉기 / 빼꼼 / 걸치기). 빼꼼 center = 최소 폭 몸통의 가운데 위 (늘이는 열은 상자 오른쪽)
+      const L = layout === 'peek' && peekPos === 'center' ? CENTER_L : 2;
+      const top = ev(h * base.top), X = L + w + 2, W = X + 20, Y = Math.max(top + 16, h + 2), t = h + 2;
       const H = Math.max(Y + 16, t + 30);
-      g = { W, H, X, Y, top, ins: [t, W - 31, Math.max(10, H - 20 - t), 19] };
-      box = { x: 2, y: 0, w, h };
+      // center 는 짧은 글이 얼굴 아래 가운데 오게 글자 틀(12pt)을 몸통 가운데에. 인셋 합은 같다 (W - 12)
+      const l = L === 2 ? W - 31 : (W - 6) / 2 - 6;
+      g = { W, H, X, Y, top, ins: [t, l, Math.max(10, H - 20 - t), W - 12 - l] };
+      box = { x: L, y: 0, w, h };
     }
     // 장식: 캐릭터 반대쪽 위 모서리 바깥 (올라앉기 계열은 꼬리 위, 서기는 왼쪽 위)
     const s = pixel ? 10 : 8, gap = pixel ? 2 : 1;
     deco = { x: layout === 'stand' ? gap : g.W - s - gap, y: g.top - s - gap, s };
   }
   g.r = shape === 'round' ? (g.W <= 40 ? 12 : 10) : RADIUS[shape];
+  if (shape === 'note' && !pixel) g.note = true; // 포스트잇: 꼬리·하이라이트 없음 (픽셀 말풍선이면 픽셀이 우선)
   return { ...g, box, deco };
 }
 
@@ -191,8 +221,10 @@ export const BUBBLES = {
  * 그래야 이어 보낸 말풍선 몸통이 첫 말풍선 몸통과 같은 x 에서 시작한다 (카카오는 01·02 그림을 같은 x 에 놓는다).
  */
 export function bubbleSpec(layout, pixelBubble, group, o = {}) {
-  const shape = o.bubbleShape || 'round', charSize = o.charSize || 'm';
-  if (!group) return bubbleGeometry(layout, charSize, shape, pixelBubble);
+  const shape = o.bubbleShape || 'round', charSize = o.charSize || 'm', pos = o.peekPos || 'corner';
+  if (!group) return bubbleGeometry(layout, charSize, shape, pixelBubble, pos);
+  // 이어 보낸 말풍선 위 작은 빼꼼 (xs 크기, 꼬리·장식 없음). 몸통 꼬리 쪽 끝이 W - 6 으로 01 과 같아서 카카오가 같은 x 에 놓아도 정렬된다
+  if (o.groupChar === 'peek' && layout !== 'stand') return { ...bubbleGeometry('peek', 'xs', shape, pixelBubble, pos), deco: null };
   const g = { ...bubbleGeometry('none', 'm', shape, pixelBubble), deco: null };
   if (layout !== 'stand') return g;
   const pad = bubbleGeometry('stand', charSize, shape, pixelBubble).W - g.W;
@@ -223,9 +255,9 @@ export function roundGeometry(b) {
   const T = b.top, Wb = b.W - (b.pad || 0), x1 = b.bx ?? Wb - 6; // pad = 오른쪽 투명 띠 (서기 02)
   return {
     body: { x0: 0.6, y0: T + 0.6, x1, y1: b.H - 0.6, r: b.r ?? (Wb <= 40 ? 12 : 10) },
-    tail: b.bx ? [[x1 - 15, T + 2.5], [x1 + 6, T - 7], [x1 - 3, T + 5]] : [[Wb - 12, T + 2], [Wb - 0.4, T + 0.8], [Wb - 6.4, T + 13]],
+    tail: b.note ? null : b.bx ? [[x1 - 15, T + 2.5], [x1 + 6, T - 7], [x1 - 3, T + 5]] : [[Wb - 12, T + 2], [Wb - 0.4, T + 0.8], [Wb - 6.4, T + 13]],
     up: !!b.bx,
-    highlight: { cx: 7.5, cy: T + 5.75, rx: 3, ry: 1.75 },
+    highlight: b.note ? null : { cx: 7.5, cy: T + 5.75, rx: 3, ry: 1.75 }, // 포스트잇(note)은 꼬리·하이라이트 없음
   };
 }
 
@@ -244,7 +276,7 @@ export function pixelGeometry(b) {
 export const lineWidth = (outline = 'normal', side = 'send') => {
   const w = OUTLINES[outline];
   if (w == null) throw new Error(`unknown outline ${outline}`);
-  return w + (side === 'receive' ? RECV_EXTRA : 0);
+  return w && w + (side === 'receive' ? RECV_EXTRA : 0); // none = 0 (받은 쪽도)
 };
 // 래스터에서 외곽선이 실제로 닿는 거리 (@2x/@3x 반올림 중 큰 쪽, 받은 쪽 기준)
 const lineReach = outline => Math.max(...[2, 3].map(k => Math.round(lineWidth(outline, 'receive') * k) / k));
@@ -257,7 +289,7 @@ const lineReach = outline => Math.max(...[2, 3].map(k => Math.round(lineWidth(ou
 export function features(b, pixel, outline = 'normal') {
   const out = [];
   if (pixel) {
-    const g = pixelGeometry(b), C = PIXEL_CELL, e = (PIXEL_OUTLINE[outline] - 1) * C;
+    const g = pixelGeometry(b), C = PIXEL_CELL, e = Math.max(0, PIXEL_OUTLINE[outline] - 1) * C;
     const rc = Math.ceil(g.r - 0.5); // 계단 모서리가 차지하는 칸 수 (중심 clamp 가 걸리는 칸)
     const L = 0, R = g.x1 + 2, Tp = g.Tc, Bt = g.y1 + 2; // 그림자 1칸 포함
     out.push({ kind: 'corner', x0: L * C, x1: rc * C + e, y0: Tp * C, y1: (Tp + rc) * C + e });
@@ -270,13 +302,15 @@ export function features(b, pixel, outline = 'normal') {
     out.push({ kind: 'corner', x0, x1: x0 + r, y0, y1: y0 + r });
     out.push({ kind: 'corner', x0: x1 - r, x1, y0: y1 - r, y1 });
     // 꼬리는 몸통 밖으로 나온 부분만 보인다: 오른쪽 변(x1)을 빠져나가는 y 까지. 위로 올라가는 꼬리(서기)는 삼각형 전체 + 선
-    const [, [bx, by], [cx, cy]] = g.tail, exitY = by + (cy - by) * (bx - x1) / (bx - cx);
-    const xs = g.tail.map(p => p[0]), ys = g.tail.map(p => p[1]);
-    out.push(g.up
-      ? { kind: 'tail', x0: Math.min(...xs) - e, x1: Math.max(...xs) + e, y0: Math.min(...ys) - e, y1: Math.max(...ys) + e }
-      : { kind: 'tail', x0: Math.min(...xs) - e, x1: Math.max(...xs), y0: Math.min(...ys), y1: exitY + e });
+    if (g.tail) {
+      const [, [bx, by], [cx, cy]] = g.tail, exitY = by + (cy - by) * (bx - x1) / (bx - cx);
+      const xs = g.tail.map(p => p[0]), ys = g.tail.map(p => p[1]);
+      out.push(g.up
+        ? { kind: 'tail', x0: Math.min(...xs) - e, x1: Math.max(...xs) + e, y0: Math.min(...ys) - e, y1: Math.max(...ys) + e }
+        : { kind: 'tail', x0: Math.min(...xs) - e, x1: Math.max(...xs), y0: Math.min(...ys), y1: exitY + e });
+    }
     const h = g.highlight;
-    out.push({ kind: 'highlight', x0: h.cx - h.rx, x1: h.cx + h.rx, y0: h.cy - h.ry, y1: h.cy + h.ry });
+    if (h) out.push({ kind: 'highlight', x0: h.cx - h.rx, x1: h.cx + h.rx, y0: h.cy - h.ry, y1: h.cy + h.ry });
   }
   const c = b.box; // 받은 쪽은 거울상이라 띠도 같이 반전된다
   if (c) out.push({ kind: 'char', x0: c.x, x1: c.x + c.w, y0: c.y, y1: c.y + c.h });

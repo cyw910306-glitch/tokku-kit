@@ -33,18 +33,36 @@ function bubbleBlock(side, b1, b2, pal) {
 }`;
 }
 
-/** meta = { bubbles: {'01','02'}, palette, themeId, themeName } -> CSS */
+// 무채색 글자 모드 (textTone mono): 목록 선택 배경 = 글자색 5%, 입력창 보내기·버튼·섹션 제목·공유바 이름 = 글자색 (색은 그림·면에만)
+const MONO = [
+  [/(-ios-selected-background-color: )\{\{accent\}\};(\s+-ios-selected-background-alpha: )0\.06;/, '$1{{text}};$20.05;'],
+  [/(-ios-send-normal-background-color: )\{\{accent\}\}/, '$1{{text}}'],
+  [/(-ios-send-highlighted-background-color: )\{\{accentDark\}\}/, '$1{{textDark}}'],
+  [/(-ios-button-normal-foreground-color: )\{\{accent\}\}/, '$1{{text}}'],
+  [/(-ios-button-highlighted-foreground-color: )\{\{accentDark\}\}/, '$1{{textDark}}'],
+  [/(-ios-button-normal-background-color: )\{\{accent\}\}/, '$1{{text}}'],
+  [/(SectionTitleStyle-Main\s+\{\s+border-color: \{\{line\}\};\s+border-alpha: 0\.2;\s+-ios-text-color: )\{\{accent\}\}/, '$1{{text}}'],
+  [/(DirectShareBarName \{ -ios-text-color: )\{\{accent\}\}/, '$1{{text}}'],
+];
+
+/** meta = { bubbles: {'01','02'}, palette, themeId, themeName, textTone? } -> CSS */
 export function buildCss(meta) {
   const pal = meta.palette;
+  let tpl = CSS_TEMPLATE;
+  if (meta.textTone === 'mono') for (const [re, to] of MONO) {
+    if (!re.test(tpl)) throw new Error(`css template changed: ${re}`);
+    tpl = tpl.replace(re, to);
+  }
   const tokens = {
     ...pal,
     accentDark: shiftL(pal.accent, -0.1),
+    textDark: shiftL(pal.text, -0.1),
     name: meta.themeName,
     id: meta.themeId,
     bubbleSend: bubbleBlock('send', meta.bubbles['01'], meta.bubbles['02'], pal),
     bubbleReceive: bubbleBlock('receive', meta.bubbles['01'], meta.bubbles['02'], pal),
   };
-  return CSS_TEMPLATE.replace(/\{\{(\w+)\}\}/g, (_, k) => {
+  return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => {
     if (tokens[k] == null) throw new Error(`css token ${k} missing`);
     return tokens[k];
   });

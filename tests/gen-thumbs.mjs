@@ -38,7 +38,7 @@ try {
       const t = E.TEMPLATES.find(x => x.id === id);
       const load = async n => E.prepareCharacter(await E.decodeImage(await (await fetch(`/demo/${n}.png`)).blob()), {});
       const A = await load(demo), B = await load('hotteok'); // 내 = 젤리(또는 DEMO), 친구 = 호떡: 받은 말풍선엔 친구 캐릭터가 선다
-      const { files, meta } = await E.buildTheme(A, B, { ...E.DEFAULTS, ...t.opts, name: t.name, id: '0123456789ab' });
+      const { files, meta } = await E.buildTheme(A, B, { ...E.DEFAULTS, ...t.opts, background: t.bg || null, name: t.name, id: '0123456789ab' });
       const urls = new Map([...files].map(([k, v]) => [k, URL.createObjectURL(v)]));
       const u = n => urls.get(`Images/${n}@3x.png`) || urls.get(`Images/${n}@2x.png`) || urls.get(`Images/${n}.png`) || '';
       document.body.innerHTML = '<div id="h" style="width:397px;margin:0"></div>';

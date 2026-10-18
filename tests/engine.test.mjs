@@ -108,7 +108,7 @@ test('presets: invariants hold for every layout x charSize x shape x pixel x gro
     assert.deepEqual(checkInvariants(layout, pixel, group, { ...o, outline }), [], `${tag} ${outline}`);
     n++;
   }
-  assert.equal(n, 5 * 3 * 3 * 2 * 2 * 3);
+  assert.equal(n, LAYOUTS.length * CHAR_SIZES.length * SHAPES.length * 2 * 2 * OUTS.length);
 });
 
 test('presets: table values (SPEC 3) and receive cap X = W - X - 1, insets mirrored', () => {
@@ -746,6 +746,12 @@ test('render slots: bubble slot is used only for its own layout (perch/peek/hang
       for (const j of [0, 1]) assert.equal(r.probes[i * 2 + j].n > 0, l === layout, `${layout} pixel=${pixel}: ${l} color in ${probes[i * 2 + j].file}`);
     });
   }
+  // groupChar 빼꼼: 02 도 01 과 같은 slot 그림 (기본 캐릭터로 새지 않는다)
+  for (const layout of ['perch', 'hang', 'peek']) {
+    const r = await buildProbe(pg, { opts: { id: 'a1b2c3d4e5f6', layout, groupChar: 'peek' }, assets: { slots: { bubble } },
+      probes: ['chatroomBubbleSend02@3x.png', 'chatroomBubbleReceive02@2x.png'].map(file => ({ file, find: C[layout] })) });
+    for (const p of r.probes) assert.ok(p.n > 0, `${layout} groupChar: slot color in 02`);
+  }
   // 커플: 내 폰 = 보낸 쪽 slot·받은 쪽 B 기본, 상대 폰 = 받은 쪽(A 자리)만 slot, 프로필 등은 B 기본. JSZip 대신 파일 표를 돌려주는 가짜
   const r = await pg.evaluate(async () => {
     globalThis.JSZip = class { constructor() { this.files = new Map(); } file(p, d) { this.files.set(p, d); } async generateAsync() { return this.files; } };
@@ -802,7 +808,7 @@ test('render slots: pixel slots are placed at integer multiples (same cell grid 
   }
 });
 
-test('render background: 7 patterns differ, header band plain, none = flat color, size/opacity/color apply', { timeout: 120000 }, async t => {
+test('render background: every pattern differs, header band plain, none = flat color, size/opacity/color apply', { timeout: 120000 }, async t => {
   const pg = await page();
   if (!pg) return t.skip('playwright (tests/.pw) not installed');
   const base = { id: 'a1b2c3d4e5f6' };
@@ -912,4 +918,150 @@ test('render pixel slots: a big pre-made sprite shrunk into a small box keeps it
     return { pk };
   }, { n, ink, pink });
   assert.ok(r.pk > 200, `pink cells survive: ${r.pk}`);
+});
+
+// ---------- 포스트잇 · 빼꼼 가운데 · 02 빼꼼 · 무채색 글자 · 키패드 캐릭터 색 · 일괄 slot · 새 무늬 ----------
+import { applyTextTone } from '../public/engine/render.js';
+
+test('note (포스트잇): no tail, no highlight, square corners; outline none = fill only (both sides), invariants hold', () => {
+  for (const layout of LAYOUTS) for (const outline of OUTS) for (const group of [false, true]) {
+    const o = { bubbleShape: 'note', outline }, b = bubbleSpec(layout, false, group, o);
+    assert.deepEqual(checkInvariants(layout, false, group, o), [], `${layout} ${outline} ${group}`);
+    assert.ok(!features(b, false, outline).some(f => f.kind === 'tail' || f.kind === 'highlight'), `${layout}: no tail/highlight feature`);
+    for (const side of ['send', 'receive']) {
+      const k = 3, img = bubbleImage(b, { tail: !group, selected: false, side, k, pixel: false, outline }, PAL);
+      const F = rgb(side === 'send' ? PAL.sendFill : PAL.recvFill).join(), at = (x, y) => img.data.slice((y * img.width + x) * 4, (y * img.width + x) * 4 + 4);
+      // 몸통 오른쪽(받은 쪽 왼쪽) 6pt = 꼬리 자리는 비어 있음
+      const tailX = side === 'send' ? (b.W - (b.pad || 0) - 3) * k : 3 * k;
+      if (!b.bx) for (let y = 0; y < img.height; y++) assert.equal(at(tailX, y)[3], 0, `${layout} ${side}: tail column empty`);
+      if (outline === 'none') { // 불투명 픽셀은 전부 면 색
+        for (let i = 0; i < img.data.length; i += 4) if (img.data[i + 3]) assert.equal([...img.data.slice(i, i + 3)].join(), F, `${layout} ${side}: fill only`);
+        const x0 = side === 'send' ? k : img.width - 1 - k; // 몸통 모서리에서 1pt 안: 둥근 모서리면 밖, 각진 모서리면 안
+        assert.equal(at(x0, (b.top + 1) * k)[3], 255, `${layout} ${side}: square corner`);
+      }
+    }
+  }
+  assert.equal(bubbleGeometry('none', 'm', 'note').r, 0);
+  assert.equal(bubbleGeometry('none', 'm', 'note', true).note, undefined, 'pixel bubble wins over note');
+  assert.equal(OUTLINES.none, 0);
+});
+import { features } from '../public/engine/presets.js';
+
+test('peekPos center: character centered on the min-width body, column right of it, text frame centered; corner unchanged', () => {
+  for (const charSize of CHAR_SIZES) for (const bubbleShape of SHAPES) for (const pixel of [false, true]) for (const outline of OUTS) {
+    const o = { charSize, bubbleShape, outline, peekPos: 'center' }, b = bubbleSpec('peek', pixel, false, o), tag = `${charSize} ${bubbleShape} ${pixel} ${outline}`;
+    assert.deepEqual(checkInvariants('peek', pixel, false, o), [], tag);
+    assert.equal(b.box.x + b.box.w / 2, (b.W - 6) / 2, `${tag}: centered`);
+    assert.ok(b.X >= b.box.x + b.box.w + 1, `${tag}: column right of the box`);
+    assert.equal(b.ins[1] + 6, (b.W - 6) / 2, `${tag}: text frame centered`);
+  }
+  assert.deepEqual(bubbleSpec('peek', false, false, { peekPos: 'corner' }), bubbleSpec('peek', false, false, {}));
+  assert.deepEqual(bubbleSpec('perch', false, false, { peekPos: 'center' }), bubbleSpec('perch', false, false, {}), 'only peek moves');
+  assert.throws(() => bubbleGeometry('peek', 'm', 'round', false, 'left'));
+  assert.throws(() => normalizeOptions({ peekPos: 'left' }));
+});
+
+test('groupChar peek: 02 gets a small peek box, body tail edge stays aligned with 01, invariants hold; stand/none default unchanged', () => {
+  for (const layout of LAYOUTS) for (const pixel of [false, true]) for (const peekPos of ['corner', 'center']) for (const bubbleShape of SHAPES) {
+    const o = { groupChar: 'peek', peekPos, bubbleShape }, b2 = bubbleSpec(layout, pixel, true, o), tag = `${layout} ${pixel} ${peekPos} ${bubbleShape}`;
+    assert.deepEqual(checkInvariants(layout, pixel, true, o), [], tag);
+    if (layout === 'stand') { assert.deepEqual(b2, bubbleSpec('stand', pixel, true, { bubbleShape }), `${tag}: stand keeps its padded 02`); continue; }
+    assert.ok(b2.box && b2.box.w < bubbleGeometry('peek', 's').box.w && b2.deco === null, `${tag}: small box, no deco`);
+    for (const side of ['send', 'receive']) for (const k of [2, 3]) {
+      const edge = (b, group) => { // 늘이는 행에서 몸통 꼬리 쪽 끝 (그림 가장자리에서 떨어진 거리)
+        const img = bubbleImage(b, { tail: false, selected: false, side, k, pixel, outline: 'normal' }, PAL), y = b.Y * k, xs = [];
+        for (let x = 0; x < img.width; x++) if (img.data[(y * img.width + x) * 4 + 3] > 128) xs.push(x);
+        return side === 'send' ? img.width - 1 - xs.at(-1) : xs[0];
+      };
+      assert.equal(edge(b2, true), edge(bubbleSpec(layout, pixel, false, o), false), `${tag} ${side} @${k}x: 02 body edge = 01 body edge`);
+    }
+  }
+  assert.equal(bubbleSpec('perch', false, true, { groupChar: 'none' }).box, null);
+  assert.throws(() => normalizeOptions({ groupChar: 'stand' }));
+});
+
+test('textTone mono / fillTone pastel / keypadTone: WCAG holds for many hues, css swaps selection + send button only in mono', () => {
+  for (let h = 0; h < 360; h += 30) {
+    const img = blob(120, 100, [Math.round(127 + 120 * Math.cos(h * Math.PI / 180)), Math.round(127 + 120 * Math.cos((h - 120) * Math.PI / 180)), Math.round(127 + 120 * Math.cos((h + 120) * Math.PI / 180))]);
+    const pal = applyTextTone(applyFillTone(derive(img), 'pastel'), 'mono');
+    assert.equal(pal.text, '#383838'); assert.equal(pal.muted, '#5E5E5E');
+    for (const k of ['bg', 'sendFill', 'recvFill', 'sendSel', 'recvSel', 'keypad', 'tabBg']) assert.ok(contrast(pal.text, pal[k]) >= 4.5, `hue ${h}: text on ${k} ${contrast(pal.text, pal[k])}`);
+    assert.ok(contrast(pal.muted, pal.bg) >= 3, `hue ${h}: muted`);
+    assert.notEqual(pal.recvFill, '#FFFFFF', 'pastel receive is tinted');
+    assert.ok(contrast(pal.text, derive(img).sendFill) >= 4.5, `hue ${h}: keypad = sendFill readable`);
+  }
+  assert.equal(applyTextTone(PAL, 'palette'), PAL);
+  const meta = { bubbles: { '01': bubbleSpec('peek', false, false), '02': bubbleSpec('peek', false, true) }, palette: applyTextTone(PAL, 'mono'), themeId: themeId('a1b2c3d4e5f6'), themeName: 'x' };
+  const plain = buildCss({ ...meta, palette: PAL }), mono = buildCss({ ...meta, textTone: 'mono' });
+  assert.equal(buildCss({ ...meta, palette: PAL, textTone: 'palette' }), plain, 'palette mode = old css');
+  assert.match(mono, /-ios-selected-background-color: #383838;\s+-ios-selected-background-alpha: 0\.05;/);
+  assert.match(mono, /-ios-send-normal-background-color: #383838;/);
+  assert.match(mono, /SectionTitleStyle-Main\s+\{[^}]*?-ios-text-color: #383838;/);
+  assert.match(mono, /DirectShareBarName \{ -ios-text-color: #383838; \}/);
+  assert.match(plain, new RegExp(`-ios-send-normal-background-color: ${PAL.accent};`));
+  assert.ok(!/\{\{/.test(mono));
+  for (const bad of [{ textTone: 'gray' }, { keypadTone: 'red' }, { fillTone: 'neon' }]) assert.throws(() => normalizeOptions(bad));
+});
+
+test('checkAssets: ...All fills every tab / all 4 lock cells, a per-cell picture wins; passcodeNormal; bad keys throw', () => {
+  const a = { width: 2, height: 2, data: new Uint8ClampedArray(16) }, b = { width: 3, height: 1, data: new Uint8ClampedArray(12) };
+  const s = checkAssets({ slots: { tabSelectedAll: a, tabSelected: { chats: b }, tabNormalAll: b, passcodeAll: { normal: a, selected: b }, passcodeSelected: [a] } }).slots;
+  assert.deepEqual(Object.values(s.tabSelected).map(v => v === a ? 'a' : 'b'), ['a', 'b', 'a', 'a', 'a', 'a']);
+  assert.ok(Object.values(s.tabNormal).every(v => v === b));
+  assert.deepEqual(s.passcodeNormal, [a, a, a, a]);
+  assert.deepEqual(s.passcodeSelected, [a, b, b, b]);
+  assert.ok(!('tabSelectedAll' in s) && !('passcodeAll' in s), 'expanded, not passed on');
+  assert.deepEqual(checkAssets({}).slots.passcodeNormal, [null, null, null, null]);
+  for (const bad of [{ passcodeAll: { pressed: a } }, { tabNormalAll: { width: 1 } }, { passcodeNormal: [a, a, a, a, a] }]) assert.throws(() => checkAssets({ slots: bad }), JSON.stringify(Object.keys(bad)));
+});
+
+test('background: new patterns + haze resolve, defaults stay none, bad haze throws; sticky templates carry a valid bg', () => {
+  for (const p of ['wobble-grid', 'sprinkle-hearts', 'wobble-grid+sprinkle-hearts']) assert.equal(resolveBackground('cream-dots', { pattern: p }).pattern, p);
+  assert.deepEqual(resolveBackground('cream-dots').haze, { main: 'none', chat: 'none', passcode: 'none' });
+  const h = resolveBackground('cream-dots', { haze: { main: 'rainbow' } });
+  assert.deepEqual(h.haze, { main: 'rainbow', chat: 'none', passcode: 'none' });
+  assert.deepEqual(resolveBackground('cream-dots', h), h, 'idempotent');
+  assert.throws(() => resolveBackground('cream-dots', { haze: { chat: 'fog' } }));
+  for (const id of ['sticky-peek', 'sticky-perch']) {
+    const t = TEMPLATES.find(x => x.id === id);
+    assert.ok(t && t.bg, id);
+    const o = normalizeOptions({ ...DEFAULTS, ...t.opts, background: t.bg, id: 'a1b2c3d4e5f6' });
+    assert.equal(o.bubbleShape, 'note'); assert.equal(o.outline, 'none'); assert.equal(o.textTone, 'mono'); assert.equal(o.keypadTone, 'char');
+    assert.equal(o.background.haze.main, 'rainbow');
+  }
+  const sp = TEMPLATES.find(x => x.id === 'sticky-peek').opts;
+  assert.deepEqual([sp.layout, sp.peekPos, sp.groupChar], ['peek', 'center', 'peek']);
+  assert.equal(TEMPLATES.find(x => x.id === 'sticky-perch').opts.layout, 'perch');
+});
+
+test('render sticky: same input = same bytes, new patterns + haze draw, keypad = sendFill with white press, 02 peek, ...All slots land', { timeout: 120000 }, async t => {
+  const pg = await page();
+  if (!pg) return t.skip('playwright (tests/.pw) not installed');
+  const tp = TEMPLATES.find(x => x.id === 'sticky-peek');
+  const opts = { ...tp.opts, background: tp.bg, id: 'a1b2c3d4e5f6' };
+  const A = [10, 200, 90], B = [200, 30, 160];
+  const assets = { slots: { tabNormalAll: { solid: [40, 40, A] }, passcodeAll: { normal: { solid: [40, 40, B] } } } };
+  const probes = [{ file: 'passcodeBgImage@3x.png', at: [600, 1199] }, { file: 'passcodeKeypadPressed@3x.png', at: [90, 90] },
+    ...['Friends', 'Chats', 'Now', 'Shopping', 'Call', 'More'].map(n => ({ file: `maintabIco${n}@3x.png`, find: A })),
+    ...[1, 2, 3, 4].map(i => ({ file: `passcodeImgCode0${i}@3x.png`, find: B })),
+    { file: 'chatroomBubbleSend02@3x.png', bbox: 1 }, { file: 'mainBgImage@3x.png', rows: [0, 330] }];
+  const r1 = await buildProbe(pg, { char: ['jelly', 'hotteok'], opts, assets, probes });
+  const r2 = await buildProbe(pg, { char: ['jelly', 'hotteok'], opts, assets, probes });
+  assert.deepEqual(r1.hashes, r2.hashes, 'deterministic');
+  const pal = r1.meta.palette;
+  assert.equal(pal.keypad, pal.sendFill, 'keypad = sendFill (캐릭터 대표색)');
+  assert.ok(near(r1.probes[0], [...hexRgb(pal.keypad), 255]), `passcode bottom = keypad ${r1.probes[0]}`);
+  assert.ok(near(r1.probes[1].slice(0, 3), [255, 255, 255]), 'keypad press = white');
+  r1.probes.slice(2, 12).forEach((p, i) => assert.ok(p.n > 0, `slot ...All probe ${i}`));
+  const b2 = r1.meta.bubbles['02'], bb = r1.probes[12];
+  assert.ok(bb[1] < b2.top * 3, '02: character above the body');
+  assert.equal(r1.probes[13], null, 'haze: header is not flat (rainbow wash)');
+  assert.match(await pg.evaluate(async o => { const r = await E.buildTheme(window.CH.jelly, null, o); return r.css; }, opts), /-ios-send-normal-background-color: #383838;/);
+  // 무늬·헤이즈마다 다른 그림, 헤이즈 없는 기본은 그대로
+  const hs = new Set();
+  for (const background of [{ pattern: 'wobble-grid' }, { pattern: 'sprinkle-hearts' }, { pattern: 'none', haze: { chat: 'rainbow' } }, { pattern: 'none' }]) {
+    const r = await buildProbe(pg, { opts: { id: 'a1b2c3d4e5f6', background: { ...background, corner: { main: 'none', chat: 'none' } } } });
+    hs.add(r.hashes['Images/chatroomBgImage@3x.png']);
+  }
+  assert.equal(hs.size, 4);
 });

@@ -73,11 +73,11 @@ function erodeSquare(cov, w, h, rad) {
 /** 둥근 말풍선 (보낸 쪽 모양) @k. 외곽선 = 바깥 커버리지, 면 = 침식 커버리지 */
 export function roundBubble(b, { tail = true, selected = false, side = 'send', k = 3, outline = 'normal', outlineColor = 'auto', highlight = true }, pal) {
   const g = roundGeometry(b), W = b.W * k, H = b.H * k;
-  const mask = rasterize(W, H, k, (x, y) => inRRect(x, y, g.body) || (tail && inTri(x, y, g.tail)));
+  const mask = rasterize(W, H, k, (x, y) => inRRect(x, y, g.body) || (tail && g.tail && inTri(x, y, g.tail)));
   const inner = erode(mask, W, H, Math.round(lineWidth(outline, side) * k));
   const { fill, line } = colorsFor(pal, side, selected, outlineColor);
   const F = rgb(fill), L = rgb(line);
-  const hl = side === 'send' && highlight
+  const hl = side === 'send' && highlight && g.highlight
     ? rasterize(W, H, k, (x, y) => ((x - g.highlight.cx) / g.highlight.rx) ** 2 + ((y - g.highlight.cy) / g.highlight.ry) ** 2 <= 1)
     : null;
   const out = new Uint8ClampedArray(W * H * 4);
@@ -109,7 +109,7 @@ export function pixelBubbleCells(b, { tail = true, selected = false, side = 'sen
   for (const p of inside) { const x = p % 1000, y = Math.floor(p / 1000); if (!has(x + 1, y + 1)) put(x + 1, y + 1, pal.shadow); }
   const near = PIXEL_OUTLINE[outline] === 2 // 바깥까지 맨해튼 거리 2 이내 = 외곽선
     ? [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]
-    : [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    : PIXEL_OUTLINE[outline] ? [[1, 0], [-1, 0], [0, 1], [0, -1]] : []; // none = 외곽선 없음
   for (const p of inside) {
     const x = p % 1000, y = Math.floor(p / 1000);
     put(x, y, near.some(([dx, dy]) => !has(x + dx, y + dy)) ? pal.text : fill);

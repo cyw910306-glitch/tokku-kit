@@ -1,7 +1,7 @@
 // 캔버스 렌더링과 테마 빌드. 브라우저 전용 (캔버스는 makeCanvas 한 곳에서만 만든다).
 import { IMAGES } from './spec.js';
-import { DEFAULTS, PRESETS, LAYOUTS, GRIDS, BG, PERCH_CROP, PEEK_CROP, CHAR_SIZES, SHAPES, OUTLINES, OUTLINE_COLORS, DECOS, FILL_TONES, PATTERN_SIZES, bubbleSpec, charBox, resolveBackground, patternLayers, cornerBox } from './presets.js';
-import { derive, shiftL, oklch, rgbToOklch, rgb, lumRgb, contrast } from './palette.js';
+import { DEFAULTS, PRESETS, LAYOUTS, GRIDS, BG, PERCH_CROP, PEEK_CROP, CHAR_SIZES, SHAPES, OUTLINES, OUTLINE_COLORS, DECOS, FILL_TONES, GROUP_CHARS, PEEK_POS, TEXT_TONES, KEYPAD_TONES, PATTERN_SIZES, bubbleSpec, charBox, resolveBackground, patternLayers, cornerBox } from './presets.js';
+import { derive, shiftL, oklch, rgbToOklch, rgb, lumRgb, contrast, mulberry32 } from './palette.js';
 import { pixelize, fitSprite, binarizeScale, centerCropX } from './pixelize.js';
 import { crop, cropToAlpha } from './keying.js';
 import { bubbleImage, layerChar } from './bubble.js';
@@ -191,7 +191,7 @@ function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(x0, y0, x1 - x0, y1 - y0);
-  if (skip && layers.every(([k]) => k !== 'check' && k !== 'grid')) ctx.rect(skip.x - 20, skip.y - 20, skip.w + 40, skip.h + 40);
+  if (skip && layers.every(([k]) => k !== 'check' && k !== 'grid' && k !== 'wobble-grid')) ctx.rect(skip.x - 20, skip.y - 20, skip.w + 40, skip.h + 40);
   ctx.clip('evenodd');
   const scatter = (step, draw) => { // 엇갈린 행으로 흩뿌리기
     let i = 0;
@@ -209,13 +209,24 @@ function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null) {
       scatter(130 * f, (x, y, i) => { ctx.fillStyle = cols[i % cols.length]; ctx.beginPath(); rr(ctx, x - s, y - s, s * 2, s * 2, 6 * f); ctx.fill(); });
     } else if (kind === 'hearts') { // 작은 하트, accent / sendLine 번갈아
       const cols = pc || [pal.accent, pal.sendLine], s = 14 * f;
-      scatter(140 * f, (x, y, i) => {
-        ctx.fillStyle = cols[i % cols.length]; ctx.beginPath();
-        ctx.moveTo(x, y + s * 0.9);
-        ctx.bezierCurveTo(x - s * 1.6, y - s * 0.1, x - s * 0.6, y - s * 1.2, x, y - s * 0.35);
-        ctx.bezierCurveTo(x + s * 0.6, y - s * 1.2, x + s * 1.6, y - s * 0.1, x, y + s * 0.9);
-        ctx.closePath(); ctx.fill();
-      });
+      scatter(140 * f, (x, y, i) => { ctx.fillStyle = cols[i % cols.length]; heart(ctx, x, y, s); });
+    } else if (kind === 'sprinkle-hearts') { // 드문드문 작은 하트: 큰 칸마다 0~1개를 칸 안 아무 데나, 크기·기울기 조금씩 (시드 고정, 4색 돌려 씀)
+      const cols = pc || [[250, 0.8], [0, 0.8], [140, 0.82], [95, 0.9]].map(([h, L]) => oklch(L, 0.09, h)), cell = 460 * f, rand = mulberry32(29);
+      let i = 0;
+      for (let y = y0; y < y1; y += cell) for (let x = 0; x < x1; x += cell) {
+        const r = [rand(), rand(), rand(), rand(), rand()]; // 칸마다 5개씩 뽑는다 (빈 칸이어도 다음 칸 값이 밀리지 않게)
+        if (r[0] < 0.4) continue;
+        ctx.save(); ctx.translate(x + cell * (0.15 + 0.7 * r[1]), y + cell * (0.15 + 0.7 * r[2])); ctx.rotate((r[4] - 0.5) * 0.7);
+        ctx.fillStyle = cols[i++ % cols.length]; heart(ctx, 0, 0, (12 + 7 * r[3]) * f);
+        ctx.restore();
+      }
+    } else if (kind === 'wobble-grid') { // 손그림 격자: 선마다 이음점을 조금씩 흔들고 곡선으로 이음 (시드 고정)
+      const step = 96 * f, seg = 90 * f, j = 2.6 * f, rand = mulberry32(17), d = () => (rand() - 0.5) * 2 * j;
+      ctx.strokeStyle = pal.line; ctx.lineWidth = 2.6 * f; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let x = step / 2; x < x1; x += step) { const p = []; for (let y = y0 - seg; y < y1 + seg; y += seg) p.push([x + d(), y]); wobble(ctx, p); }
+      for (let y = y0 + step / 2; y < y1; y += step) { const p = []; for (let x = x0 - seg; x < x1 + seg; x += seg) p.push([x, y + d()]); wobble(ctx, p); }
+      ctx.stroke();
     } else if (kind === 'check') { // 연한 깅엄 체크
       ctx.fillStyle = pal.sendFill;
       const p = 120 * f, w = 60 * f;
@@ -236,6 +247,42 @@ function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null) {
       }
     }
   }
+  ctx.restore();
+}
+
+// 작은 하트 (가운데 x,y, 크기 s). hearts·sprinkle-hearts 같이 씀
+function heart(ctx, x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.9);
+  ctx.bezierCurveTo(x - s * 1.6, y - s * 0.1, x - s * 0.6, y - s * 1.2, x, y - s * 0.35);
+  ctx.bezierCurveTo(x + s * 0.6, y - s * 1.2, x + s * 1.6, y - s * 0.1, x, y + s * 0.9);
+  ctx.closePath(); ctx.fill();
+}
+// 점들을 지나는 부드러운 선 (가운데점까지 2차 곡선). path 만 추가, stroke 는 부르는 쪽
+function wobble(ctx, p) {
+  ctx.moveTo(...p[0]);
+  for (let i = 1; i < p.length - 1; i++) ctx.quadraticCurveTo(p[i][0], p[i][1], (p[i][0] + p[i + 1][0]) / 2, (p[i][1] + p[i + 1][1]) / 2);
+  ctx.lineTo(...p[p.length - 1]);
+}
+
+/**
+ * 흐린 파스텔 무지개 + 구름 헤이즈 (W x H 전체). 큰 원형 그라데이션을 고정 자리에 겹쳐 강한 블러처럼 보이게, 그 위에 흐린 무지개 아치.
+ * ctx.filter 는 iOS 사파리 캔버스에서 안 돼서 그라데이션만 쓴다 (결정적). 색은 저채도 고정 무지개 (팔레트와 무관).
+ */
+function haze(ctx, W, H) {
+  const R = Math.max(W, H), blob = (fx, fy, fr, color, a) => {
+    const x = fx * W, y = fy * H, g = ctx.createRadialGradient(x, y, 0, x, y, fr * R);
+    g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  };
+  ctx.save();
+  for (const [fx, fy, h] of [[0.1, 0.1, 25], [0.9, 0.28, 85], [0.15, 0.5, 150], [0.85, 0.7, 230], [0.3, 0.92, 300]]) blob(fx, fy, 0.5, oklch(0.9, 0.06, h), 0.6);
+  // 무지개 아치: 오른쪽 밖에 중심을 둔 원형 그라데이션 고리 (띠 사이를 겹쳐 흐리게). 화면 밖은 잘려 아치로 보인다
+  const cx = 1.05 * W, cy = 0.62 * H, r = 0.9 * W, g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  const band = (h, a) => oklch(0.88, 0.09, h) + Math.round(a * 255).toString(16).padStart(2, '0');
+  [[0.52, 230, 0], [0.62, 230, 0.55], [0.72, 85, 0.6], [0.8, 150, 0.55], [0.89, 20, 0.5], [1, 20, 0]].forEach(([at, h, a]) => g.addColorStop(at, band(h, a)));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (const [fx, fy, fr] of [[0.55, 0.22, 0.28], [0.2, 0.68, 0.24], [0.8, 0.95, 0.26], [0.35, 0.8, 0.22]]) blob(fx, fy, fr, '#FFFFFF', 0.8); // 구름 (아치 발치를 덮는다)
   ctx.restore();
 }
 
@@ -297,7 +344,8 @@ export function normalizeOptions(opts = {}) {
   if (!PRESETS[o.preset]) throw new Error(`unknown preset ${o.preset}`);
   if (!LAYOUTS.includes(o.layout)) throw new Error(`unknown layout ${o.layout}`);
   for (const [k, ok] of [['charSize', CHAR_SIZES], ['bubbleShape', SHAPES], ['outline', Object.keys(OUTLINES)],
-    ['outlineColor', OUTLINE_COLORS], ['deco', DECOS], ['fillTone', Object.keys(FILL_TONES)]]) {
+    ['outlineColor', OUTLINE_COLORS], ['deco', DECOS], ['fillTone', Object.keys(FILL_TONES)], ['groupChar', GROUP_CHARS], ['peekPos', PEEK_POS],
+    ['textTone', Object.keys(TEXT_TONES)], ['keypadTone', KEYPAD_TONES]]) {
     if (!ok.includes(o[k])) throw new Error(`unknown ${k} ${o[k]}`);
   }
   if (!GRIDS.includes(Number(o.grid))) throw new Error(`grid must be 32|48|64`);
@@ -310,13 +358,23 @@ export function normalizeOptions(opts = {}) {
   return o;
 }
 
-/** 면 성향 (템플릿): white/cream 이면 보낸·받은 말풍선 면을 그 색으로 (사용자 색보다 우선) */
+/**
+ * 면 성향 (템플릿): white/cream 이면 보낸·받은 말풍선 면을 그 색으로 (사용자 색보다 우선).
+ * pastel = 보낸 쪽은 그대로, 받은 쪽은 보낸 파스텔에서 색상환 120도 돌린 연한 파스텔 (외곽선 없는 포스트잇도 흰 배경에서 보이게)
+ */
 export function applyFillTone(pal, tone) {
   const f = FILL_TONES[tone];
   if (!f) return pal;
+  if (f === 'pastel') {
+    const [, C, H] = rgbToOklch(rgb(pal.sendFill)), recv = oklch(0.93, Math.min(Math.max(C, 0.04), 0.05), (H + 120) % 360);
+    return { ...pal, recvFill: recv, recvSel: shiftL(recv, -0.06) };
+  }
   const sel = shiftL(f, -0.06);
   return { ...pal, sendFill: f, sendSel: sel, recvFill: f, recvSel: sel };
 }
+
+/** 글자 색 (템플릿): mono 면 본문·보조 글자를 무채색으로 (사용자 색보다 우선). 선택 배경·보내기 버튼은 css.js 가 meta.textTone 으로 */
+export const applyTextTone = (pal, tone) => (TEXT_TONES[tone] ? { ...pal, ...TEXT_TONES[tone] } : pal);
 
 // 레이아웃별 캐릭터 그림 변형: 올라앉기·걸치기 = 가로 크롭, 빼꼼 = 위 65%, 서기 = 전신
 const VARIANT = { perch: 'perch', hang: 'perch', peek: 'peek', stand: 'full' };
@@ -336,18 +394,25 @@ export function checkAssets(assets) {
   };
   for (const k of Object.keys(a)) if (!['bgMain', 'bgChat', 'bgPasscode', 'slots', 'recvBubble'].includes(k)) throw new Error(`unknown asset ${k}`);
   const s = a.slots || {};
-  const SLOT_KEYS = ['profile', 'icon', 'tabSelected', 'tabNormal', 'passcodeSelected', 'passcodeArt', 'cornerMain', 'cornerChat', 'bubble'];
+  // ...All = 일괄 (모든 탭 / 잠금 4칸 같은 그림). 칸마다 넣은 그림이 있으면 그게 이긴다
+  const SLOT_KEYS = ['profile', 'icon', 'tabSelected', 'tabNormal', 'passcodeSelected', 'passcodeNormal', 'passcodeArt', 'cornerMain', 'cornerChat', 'bubble',
+    'tabSelectedAll', 'tabNormalAll', 'passcodeAll'];
   for (const k of Object.keys(s)) if (!SLOT_KEYS.includes(k)) throw new Error(`unknown slot ${k}`);
-  const ps = s.passcodeSelected == null ? [] : s.passcodeSelected;
-  if (!Array.isArray(ps) || ps.length > 4) throw new Error('slot passcodeSelected must be [s1, s2, s3, s4]');
+  const four = (k, all) => {
+    const v = s[k] == null ? [] : s[k];
+    if (!Array.isArray(v) || v.length > 4) throw new Error(`slot ${k} must be [s1, s2, s3, s4]`);
+    return [0, 1, 2, 3].map(i => img(v[i], `${k}[${i}]`) || all);
+  };
+  const pAll = map(s.passcodeAll, ['normal', 'selected'], 'passcodeAll');
+  const tabs = (k, all) => Object.fromEntries(Object.entries(map(s[k], TAB_KEYS, k)).map(([t, v]) => [t, v || all]));
   const BL = LAYOUTS.filter(l => l !== 'none');
   return {
     bgMain: img(a.bgMain, 'bgMain'), bgChat: img(a.bgChat, 'bgChat'), bgPasscode: img(a.bgPasscode, 'bgPasscode'),
     recvBubble: map(a.recvBubble, BL, 'recvBubble'),
     slots: {
       profile: img(s.profile, 'profile'), icon: img(s.icon, 'icon'),
-      tabSelected: map(s.tabSelected, TAB_KEYS, 'tabSelected'), tabNormal: map(s.tabNormal, TAB_KEYS, 'tabNormal'),
-      passcodeSelected: [0, 1, 2, 3].map(i => img(ps[i], `passcodeSelected[${i}]`)),
+      tabSelected: tabs('tabSelected', img(s.tabSelectedAll, 'tabSelectedAll')), tabNormal: tabs('tabNormal', img(s.tabNormalAll, 'tabNormalAll')),
+      passcodeSelected: four('passcodeSelected', pAll.selected), passcodeNormal: four('passcodeNormal', pAll.normal),
       passcodeArt: img(s.passcodeArt, 'passcodeArt'), cornerMain: img(s.cornerMain, 'cornerMain'), cornerChat: img(s.cornerChat, 'cornerChat'),
       bubble: map(s.bubble, BL, 'bubble'),
     },
@@ -361,7 +426,9 @@ export function checkAssets(assets) {
 export async function buildTheme(charA, charB, opts, assets) {
   const o = normalizeOptions(opts);
   const as = checkAssets(assets), sl = as.slots, bgo = o.background;
-  const pal = applyFillTone(o.colors ? { ...derive(charA), ...o.colors } : derive(charA), o.fillTone);
+  const base = o.colors ? { ...derive(charA), ...o.colors } : derive(charA);
+  if (o.keypadTone === 'char') base.keypad = base.sendFill; // 키패드 = 캐릭터 대표색 (면 성향 적용 전 파스텔)
+  const pal = applyTextTone(applyFillTone(base, o.fillTone), o.textTone);
   pal.profileBg = pal.profileBg || shiftL(pal.bg, -0.035);
   const bgColor = bgo.color || pal.bg;
   // 배경 결과 보고 (UI 안내용): 실제 dim (자동 보정 후), 경고 'text-on-bg' = 고른 배경색 위 글자 대비 4.5 미만
@@ -436,24 +503,28 @@ export async function buildTheme(charA, charB, opts, assets) {
         const key = slot && o.layout === 'peek' ? 'full' : VARIANT[o.layout];
         for (const [n, group] of [['01', false], ['02', true]]) {
           const b = bubbleSpec(o.layout, o.pixelBubble, group, o);
+          // 02 는 groupChar 빼꼼일 때만 캐릭터 (작게, 01 과 같은 그림). 빼꼼 slot 은 이미 빼꼼 그림, 나머지는 빼꼼으로 잘라서
+          const lay = group ? (b.box ? 'peek' : 'none') : o.layout;
+          const gch = ch;
+          const gkey = group ? (slot && o.layout === 'peek' ? 'full' : 'peek') : key;
           for (const sel of [false, true]) {
             const img = bubbleImage(b, { tail: !group, selected: sel, side, k, pixel: o.pixelBubble, outline: o.outline, outlineColor: o.outlineColor, deco: group ? 'none' : o.deco }, pal);
-            const box = !group && charBox(o.layout, side, b);
+            const box = charBox(lay, side, b);
             let c;
             if (!box) c = imgCanvas(img);
-            else if (ch.pixel) { // 픽셀 캐릭터는 순수 합성 (격자 그대로)
-              c = imgCanvas(layerChar(img, fitSprite(variant(ch, key).sprite, box.w, box.h, k, !ch.asSprite), box, o.layout, k));
+            else if (gch.pixel) { // 픽셀 캐릭터는 순수 합성 (격자 그대로)
+              c = imgCanvas(layerChar(img, fitSprite(variant(gch, gkey).sprite, box.w, box.h, k, !gch.asSprite), box, lay, k));
             } else {
               const pxBox = { x: box.x * k, y: box.y * k, w: box.w * k, h: box.h * k };
-              if (o.layout === 'peek') { // 캐릭터 먼저, 몸통을 그 위에 (받은 쪽도 그림은 반전 안 함)
+              if (lay === 'peek') { // 캐릭터 먼저, 몸통을 그 위에 (받은 쪽도 그림은 반전 안 함)
                 c = makeCanvas(img.width, img.height);
                 const ctx = ctxOf(c);
-                drawChar(ctx, ch, key, pxBox, k, { align: 'bottom' });
+                drawChar(ctx, gch, gkey, pxBox, k, { align: 'bottom' });
                 const bc = imgCanvas(img);
                 ctx.drawImage(bc, 0, 0); release(bc);
               } else {
                 c = imgCanvas(img);
-                drawChar(ctxOf(c), ch, key, pxBox, k, { align: 'bottom' });
+                drawChar(ctxOf(c), gch, gkey, pxBox, k, { align: 'bottom' });
               }
             }
             await save(`chatroomBubble${side === 'send' ? 'Send' : 'Receive'}${n}${sel ? 'Selected' : ''}@${k}x.png`, c);
@@ -477,6 +548,7 @@ export async function buildTheme(charA, charB, opts, assets) {
       const spec = BG[which], box = cornerBox(which, bgo.corner);
       const c = makeCanvas(spec.w, spec.h), ctx = ctxOf(c, o.pixelChar);
       ctx.fillStyle = bgColor; ctx.fillRect(0, 0, spec.w, spec.h);
+      if (!photo && bgo.haze[which] === 'rainbow') haze(ctx, spec.w, spec.h);
       if (photo) {
         bgMeta.dim[which] = drawPhoto(ctx, photo, spec.w, spec.h, bgo.photo[which], bgColor, pal, BG.header, spec.h);
         const a = Math.round(BG.headerBand * 255).toString(16).padStart(2, '0'), g = ctx.createLinearGradient(0, BG.header, 0, BG.header + BG.headerFade);
@@ -493,6 +565,7 @@ export async function buildTheme(charA, charB, opts, assets) {
     {
       const P = BG.passcode, c = makeCanvas(P.w, P.h), ctx = ctxOf(c, o.pixelChar);
       ctx.fillStyle = bgColor; ctx.fillRect(0, 0, P.w, P.h);
+      if (!as.bgPasscode && bgo.haze.passcode === 'rainbow') haze(ctx, P.w, P.h);
       if (as.bgPasscode) bgMeta.dim.passcode = drawPhoto(ctx, as.bgPasscode, P.w, P.h, bgo.photo.passcode, bgColor, pal, 0, P.patternEnd);
       else if (bgo.patternArea.passcode === 'full') pattern(ctx, layers, pf, pal, 0, 0, P.w, P.patternEnd, null, bgo.patternColors);
       // 맨 아래 300px 는 키패드 색으로 (이음매 없음, 사진 위에서도)
@@ -524,18 +597,17 @@ export async function buildTheme(charA, charB, opts, assets) {
         bctx.imageSmoothingEnabled = false; bctx.drawImage(sparks, 0, 0); release(sparks);
         return canvasToBlob(c);
       };
+      const slot132 = ch => { const c = makeCanvas(132, 132); drawChar(ctxOf(c, ch.pixel), ch, 'full', { x: 0, y: 0, w: 132, h: 132 }, 1, { pad: 0.02 }); return canvasToBlob(c); };
       for (let i = 1; i <= 4; i++) {
-        images.set(`passcodeImgCode0${i}@3x.png`, bullet);
+        const nch = art(sl.passcodeNormal[i - 1]);
+        images.set(`passcodeImgCode0${i}@3x.png`, nch ? await slot132(nch) : bullet);
         const ch = art(sl.passcodeSelected[i - 1]);
-        let blob;
-        if (ch) { const c = makeCanvas(132, 132); drawChar(ctxOf(c, ch.pixel), ch, 'full', { x: 0, y: 0, w: 132, h: 132 }, 1, { pad: 0.02 }); blob = await canvasToBlob(c); }
-        else blob = i === 4 ? await burst() : await peek();
-        images.set(`passcodeImgCode0${i}Selected@3x.png`, blob);
+        images.set(`passcodeImgCode0${i}Selected@3x.png`, ch ? await slot132(ch) : i === 4 ? await burst() : await peek());
       }
     }
-    // 키패드 눌림 180: sendFill 원 (알파 0.9)
+    // 키패드 눌림 180: sendFill 원 (알파 0.9). 키패드가 캐릭터 색(= sendFill)이면 흰 원
     await save('passcodeKeypadPressed@3x.png', chrome(60, 60, 3, o.pixelChar, ctx => {
-      ctx.globalAlpha = 0.9; ctx.fillStyle = pal.sendFill; ctx.beginPath(); ctx.arc(30, 30, 26, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.9; ctx.fillStyle = o.keypadTone === 'char' ? '#FFFFFF' : pal.sendFill; ctx.beginPath(); ctx.arc(30, 30, 26, 0, Math.PI * 2); ctx.fill();
     }));
   } finally {
     freeChar(A); if (B !== A) freeChar(B);
@@ -546,6 +618,7 @@ export async function buildTheme(charA, charB, opts, assets) {
   const meta = {
     bubbles: { '01': bubbleSpec(o.layout, o.pixelBubble, false, o), '02': bubbleSpec(o.layout, o.pixelBubble, true, o) },
     palette: pal,
+    textTone: o.textTone,
     background: bgMeta,
     themeId: themeId(o.id),
     themeName: themeName(o.name),

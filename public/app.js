@@ -11,37 +11,45 @@ const PHOTO_SIDE = 2250;   // 배경 사진 (1125x2250 화면)
 const TOL0 = 32, TOL_MAX = 40; // 다듬기 세기 시작값·최대 (40 넘으면 배경과 비슷한 털이 깎이기 시작)
 const EMPTY_MSG = '캐릭터가 거의 다 지워졌어요. 2단계 다듬기에서 세기를 왼쪽으로 옮기거나 다른 사진을 넣어 주세요.';
 const FALLBACK_DEFAULTS = { name: '나의 테마', id: '', preset: 'cream-dots', layout: 'perch', charSize: 'm', bubbleShape: 'round', outline: 'normal', outlineColor: 'auto',
-  deco: 'none', fillTone: 'palette', pixelChar: false, grid: 48, pixelBubble: false, colors: null };
+  deco: 'none', fillTone: 'palette', pixelChar: false, grid: 48, pixelBubble: false, colors: null, groupChar: 'none', peekPos: 'corner', textTone: 'palette', keypadTone: 'palette' };
 // 꾸미기 버튼과 프로젝트 불러오기 검증이 같이 쓰는 표 (값, 화면 글자)
 const CHOICES = {
   layout: [['none', '없음'], ['perch', '올라앉기'], ['peek', '빼꼼'], ['hang', '엎드려 걸치기'], ['stand', '프사 옆 꼬마']],
   charSize: [['s', '작게'], ['m', '보통'], ['l', '크게']],
-  bubbleShape: [['round', '동글'], ['soft', '살짝 둥글'], ['square', '네모']],
-  outline: [['thin', '얇게'], ['normal', '보통'], ['thick', '굵게']],
+  bubbleShape: [['round', '동글'], ['soft', '살짝 둥글'], ['square', '네모'], ['note', '포스트잇']],
+  outline: [['thin', '얇게'], ['normal', '보통'], ['thick', '굵게'], ['none', '없음']],
   outlineColor: [['auto', '말풍선 색'], ['dark', '진하게']],
   deco: [['none', '없음'], ['sparkle', '반짝 ✦'], ['heart', '하트 ♥'], ['star', '별 ★'], ['note', '음표 ♪']],
-  fillTone: [['palette', '사진 색'], ['white', '하양'], ['cream', '크림']],
+  fillTone: [['palette', '사진 색'], ['white', '하양'], ['cream', '크림'], ['pastel', '파스텔 두 색']],
+  groupChar: [['none', '없음'], ['peek', '작게 빼꼼']],
+  peekPos: [['corner', '모서리'], ['center', '가운데 위']],
+  textTone: [['palette', '사진 색'], ['mono', '무채색']],
+  keypadTone: [['palette', '연하게'], ['char', '캐릭터 색']],
   grid: [[32, '굵게 32칸'], [48, '보통 48칸'], [64, '섬세 64칸']],
   preset: [['cream-dots', '크림 도트'], ['pastel-check', '파스텔 체크'], ['retro-game', '레트로 게임'], ['plain-minimal', '무지 미니멀']],
 };
 // 템플릿이 정하는 '모양' 키. 템플릿에 없는 키는 기본값으로 되돌려 같은 템플릿이 늘 같은 모양이 되게 한다 (무늬·격자·색·이름은 유지)
-const LOOK_KEYS = ['layout', 'charSize', 'bubbleShape', 'outline', 'outlineColor', 'deco', 'fillTone', 'pixelChar', 'pixelBubble'];
+const LOOK_KEYS = ['layout', 'charSize', 'bubbleShape', 'outline', 'outlineColor', 'deco', 'fillTone', 'pixelChar', 'pixelBubble', 'groupChar', 'peekPos', 'textTone', 'keypadTone'];
 const SWATCHES = [['bg', '배경'], ['tabBg', '탭 바'], ['sendFill', '보낸 말풍선'], ['accent', '포인트'], ['text', '글자']];
 // '색 더 보기' (팔레트 나머지 전부 + 프로필 바탕): 남이 만든 테마 색을 그대로 옮길 수 있게
 const SWATCHES_MORE = [['sendLine', '보낸 테두리'], ['sendSel', '보낸 누름'], ['recvFill', '받은 말풍선'], ['recvLine', '받은 테두리'], ['recvSel', '받은 누름'],
   ['muted', '흐린 글자'], ['line', '선'], ['keypad', '잠금 키패드'], ['shadow', '그림자'], ['profileBg', '프로필 바탕']];
 
 // ---------- 배경 (opts.background) ----------
-const PATTERNS = [['dots', '도트'], ['check', '체크'], ['grid', '격자'], ['stars', '별'], ['grid+stars', '레트로'], ['hearts', '하트'], ['cubes', '큐브'], ['none', '없음']];
+const PATTERNS = [['dots', '도트'], ['check', '체크'], ['grid', '격자'], ['stars', '별'], ['grid+stars', '레트로'], ['hearts', '하트'], ['cubes', '큐브'],
+  ['wobble-grid', '손그림 격자'], ['sprinkle-hearts', '콕콕 하트'], ['wobble-grid+sprinkle-hearts', '격자+하트'], ['none', '없음']];
 const PRESET_PATTERN = { 'cream-dots': 'dots', 'pastel-check': 'check', 'retro-game': 'grid+stars', 'plain-minimal': 'none' };
 // 무늬를 고르면 preset 도 가장 가까운 값으로 맞춘다 (배경 옵션을 모르는 엔진에서도 비슷하게 보이게)
-const PATTERN_PRESET = { dots: 'cream-dots', check: 'pastel-check', grid: 'retro-game', stars: 'retro-game', 'grid+stars': 'retro-game', hearts: 'cream-dots', cubes: 'cream-dots', none: 'plain-minimal' };
+const PATTERN_PRESET = { dots: 'cream-dots', check: 'pastel-check', grid: 'retro-game', stars: 'retro-game', 'grid+stars': 'retro-game', hearts: 'cream-dots', cubes: 'cream-dots', none: 'plain-minimal',
+  'wobble-grid': 'pastel-check', 'sprinkle-hearts': 'cream-dots', 'wobble-grid+sprinkle-hearts': 'pastel-check' };
 const CORNERS = [['br', '오른쪽 아래'], ['bl', '왼쪽 아래'], ['tr', '오른쪽 위'], ['tl', '왼쪽 위'], ['none', '없음']];
 const SIZES3 = [['s', '작게'], ['m', '보통'], ['l', '크게']];
 const FITS = [['cover', '꽉 채우기'], ['contain', '전체 보이기']];
 const PHOTO_KEYS = [['main', '친구탭', 'bgMain'], ['chat', '채팅방', 'bgChat'], ['passcode', '잠금', 'bgPasscode']];
 const AREAS = [['full', '전체'], ['top', '위쪽 띠만'], ['none', '없음']], AREAS2 = [AREAS[0], AREAS[2]];
+const HAZE = [['none', '없음'], ['rainbow', '무지개']];
 const BG_SEG = { pattern: PATTERNS, 'patternArea.main': AREAS, 'patternArea.chat': AREAS, 'patternArea.passcode': AREAS2,
+  'haze.main': HAZE, 'haze.chat': HAZE, 'haze.passcode': HAZE,
   'corner.main': CORNERS, 'corner.chat': CORNERS, 'corner.size': SIZES3, ...Object.fromEntries(PHOTO_KEYS.map(([k]) => [`photo.${k}.fit`, FITS])) };
 const DIM_MAX = 0.8;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -51,7 +59,7 @@ const num = (v, lo, hi, def) => typeof v === 'number' && Number.isFinite(v) ? Ma
 function normBg(src, preset, layout) {
   const s = src && typeof src === 'object' ? src : {}, c = s.corner || {};
   const ph = k => { const p = (s.photo && s.photo[k]) || {}; return { fit: pick(p.fit, FITS, 'cover'), blur: num(p.blur, 0, 12, 0), dim: num(p.dim, 0, DIM_MAX, 0.15) }; };
-  const pa = s.patternArea || {}, pc = s.patternColors;
+  const pa = s.patternArea || {}, pc = s.patternColors, hz = s.haze || {};
   return {
     pattern: pick(s.pattern, PATTERNS, PRESET_PATTERN[preset] || 'dots'),
     patternSize: pick(s.patternSize, SIZES3, 'm'),
@@ -61,6 +69,7 @@ function normBg(src, preset, layout) {
     color: HEX.test(s.color || '') ? s.color.toUpperCase() : null,
     photo: Object.fromEntries(PHOTO_KEYS.map(([k]) => [k, ph(k)])),
     corner: { main: pick(c.main, CORNERS, 'br'), chat: pick(c.chat, CORNERS, layout === 'stand' ? 'br' : 'bl'), size: pick(c.size, SIZES3, 'm'), opacity: num(c.opacity, 0.15, 1, null) },
+    haze: { main: pick(hz.main, HAZE, 'none'), chat: pick(hz.chat, HAZE, 'none'), passcode: pick(hz.passcode, HAZE, 'none') },
   };
 }
 const getPath = (o, p) => p.split('.').reduce((x, k) => x && x[k], o);
@@ -70,9 +79,11 @@ const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); ks.redu
 const TAB6 = [['friends', '친구'], ['chats', '채팅'], ['now', '오픈채팅'], ['shopping', '쇼핑'], ['call', '통화'], ['more', '더보기']];
 const SLOT_GROUPS = [
   ['프로필 · 아이콘', [['profile', '기본 프로필'], ['icon', '테마 아이콘']]],
-  ['탭 (눌렀을 때)', TAB6.map(([k, t]) => ['tabSelected.' + k, t])],
-  ['탭 (평소)', TAB6.map(([k, t]) => ['tabNormal.' + k, t])],
-  ['잠금 화면', [0, 1, 2, 3].map(i => ['passcodeSelected.' + i, `${i + 1}번째 자리`]).concat([['passcodeArt', '잠금 배경 그림']])],
+  // ...All = 한 장으로 전부 채우기 (칸마다 넣은 그림이 있으면 그 칸은 그게 우선)
+  ['탭 (눌렀을 때)', [['tabSelectedAll', '모든 탭 같은 그림']].concat(TAB6.map(([k, t]) => ['tabSelected.' + k, t]))],
+  ['탭 (평소)', [['tabNormalAll', '모든 탭 같은 그림']].concat(TAB6.map(([k, t]) => ['tabNormal.' + k, t]))],
+  ['잠금 화면', [['passcodeAll.selected', '4칸 같은 그림 (눌렀을 때)'], ['passcodeAll.normal', '4칸 같은 그림 (평소)']]
+    .concat([0, 1, 2, 3].map(i => ['passcodeSelected.' + i, `${i + 1}번째 자리`]), [['passcodeArt', '잠금 배경 그림']])],
   ['말풍선 캐릭터', [['bubble.perch', '올라앉기'], ['bubble.peek', '빼꼼'], ['bubble.hang', '엎드려 걸치기'], ['bubble.stand', '프사 옆 꼬마']]],
   ['배경 구석 그림', [['cornerMain', '친구탭 구석'], ['cornerChat', '채팅방 구석']]],
 ];
@@ -375,6 +386,8 @@ function syncControls() {
   $('#shapeNote').textContent = S.opts.pixelBubble ? '(픽셀 말풍선은 계단 모서리라 고를 수 없어요)' : '';
   $$('[data-opt="charSize"] button').forEach(b => { b.disabled = S.opts.layout === 'none'; });
   $$('[data-opt="layout"] button').forEach(b => { b.disabled = !okLayout(b.dataset.v); });
+  $$('[data-opt="groupChar"] button').forEach(b => { b.disabled = S.opts.layout === 'stand'; }); // 서기는 02 정렬 띠가 있어 안 씀
+  $$('[data-opt="peekPos"] button').forEach(b => { b.disabled = S.opts.layout !== 'peek' && S.opts.groupChar !== 'peek'; });
   $$('.tpl[data-tpl]').forEach(b => {
     b.setAttribute('aria-pressed', String(b.closest('#tplGrid') ? b.dataset.tpl === S.tpl : false));
     const t = TEMPLATES.find(x => x.id === b.dataset.tpl);
@@ -404,8 +417,19 @@ $$('[data-toggle]').forEach(b => b.addEventListener('click', () => {
 // 템플릿: 카드 = 엔진 thumb 그림(데모 캐릭터) + 이름. 고른 결과는 내 캐릭터로 미리보기 폰에 바로 그려진다
 function applyTemplate(id) {
   const t = TEMPLATES.find(x => x.id === id); if (!t) return;
+  // 지난 템플릿 bg 가 깐 키는 템플릿을 바꾸면 깔기 전 값으로 되돌린다 (그 뒤 사용자가 손댄 키는 그대로)
+  const js = JSON.stringify;
+  if (S.bgUndo) for (const [k, { before, after }] of Object.entries(S.bgUndo)) if (js(S.opts.background[k]) === after) S.opts.background[k] = before;
+  S.bgUndo = null;
   S.opts = { ...S.opts, ...lookOf(t) };
   if (PRESET_PATTERN[t.opts.preset]) S.opts.background = { ...S.opts.background, pattern: PRESET_PATTERN[t.opts.preset] };
+  if (t.bg && typeof t.bg === 'object') { // 템플릿 배경 (포스트잇 계열): 지금 배경 위에 덮는다 (사진·색·구석은 그대로)
+    const was = S.opts.background, b = structuredClone(was);
+    for (const [k, v] of Object.entries(t.bg)) b[k] = v && typeof v === 'object' && !Array.isArray(v) ? { ...b[k], ...v } : v;
+    S.opts.background = normBg(b, S.opts.preset, S.opts.layout);
+    S.bgUndo = Object.fromEntries(Object.keys(t.bg).map(k => [k, { before: structuredClone(was[k]), after: js(S.opts.background[k]) }]));
+    if (PATTERN_PRESET[S.opts.background.pattern]) S.opts.preset = PATTERN_PRESET[S.opts.background.pattern];
+  }
   standCorner();
   S.tpl = t.id;
   syncControls(); schedule();
@@ -690,7 +714,7 @@ async function bragCard() {
   ctx.fillStyle = p.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = font(700, 50); ctx.fillText(S.opts.name.trim() || '나의 테마', 540, 150);
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  const msgs = [['r', '오늘 저녁에 산책 갈래?', '01'], ['r', '날씨 진짜 좋대!', '02'], ['s', '좋아 좋아!!', '01'], ['s', '간식도 챙겨 갈게', '02'], ['r', 'ㅋㅋ', '01'], ['s', 'ㅋ', '01']];
+  const msgs = [['r', '산책 갈래?', '01'], ['r', '날씨 진짜 좋대!', '02'], ['s', '좋아 좋아!!', '01'], ['s', '간식도 챙겨 갈게', '02'], ['r', 'ㅋㅋ', '01'], ['s', 'ㅋ', '01']];
   let y = 120; // pt
   ctx.font = font(500, 15 * k);
   ctx.imageSmoothingEnabled = !S.opts.pixelBubble;
@@ -743,6 +767,7 @@ $('#fileProj').addEventListener('change', async e => {
     const okSrc = s => typeof s === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(s);
     if (j.app !== 'tokku-kit' || !j.a || !okSrc(j.a.src) || (j.b && !okSrc(j.b.src))) throw new Error('bad');
     S.opts = { ...S.opts, ...normOpts(j.options || {}, { ...DEF, name: S.opts.name, background: null }) };
+    S.bgUndo = null;
     S.couple = !!j.couple;
     S.id = /^[0-9a-f]{12}$/.test(j.id) ? j.id : newId();
     S.demo = false;
@@ -808,6 +833,7 @@ async function loadPack(url, vid, keepLook = false) {
   const vo = keepLook ? { ...(v.options || {}), colors: o.colors } : o;
   if (keepLook && typeof P.slotsArePixel === 'boolean') vo.slotsArePixel = P.slotsArePixel;
   S.opts = { ...S.opts, ...normOpts(vo, keepLook ? S.opts : { ...DEF, name: S.opts.name, background: null }) };
+  S.bgUndo = null;
   S.a = a; S.b = b; S.photos = keepLook ? S.photos : {};
   S.slots = Object.fromEntries(slotList.map(([k], i) => [k, Object.assign(arts[i], { slot: true })]));
   S.id = newId(); S.demo = false;
@@ -850,6 +876,7 @@ try {
   DEF = { ...FALLBACK_DEFAULTS, ...(engine.DEFAULTS || {}) };
   TEMPLATES = Array.isArray(engine.TEMPLATES) ? engine.TEMPLATES.filter(t => t && t.id && t.name && t.opts) : [];
   S.opts = { ...DEF, name: S.opts.name, colors: null, background: normBg(DEF.background, DEF.preset, DEF.layout), slotsArePixel: !!DEF.slotsArePixel };
+  S.bgUndo = null;
   S.tpl = matchTpl();
   renderTemplates(); syncControls(); syncGet();
   const packParam = new URLSearchParams(location.search).get('pack');
