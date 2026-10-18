@@ -521,19 +521,28 @@ document.addEventListener('click', e => {
   if (F.c === c) return fixClose();
   fixOpen(c, b.closest(slot ? '.slots' : '.field'), slot ? SLOT_NAME[slot] : k === 'a' ? '내 캐릭터' : '친구 캐릭터');
 });
-/** 프로젝트 파일의 edits 검증: 아는 도구만, 정수 좌표, 단계 수·점 수 상한 (모르면 빈 목록) */
+/** 프로젝트 파일의 edits 검증: 아는 도구만, 정수 좌표, 단계 수·점 수 상한 (모르면 빈 목록).
+ * 재생 비용 상한: 그림은 최대 1024px, 붓 반경 최대 64(앱의 큰 붓 = 51), 전체 예산 EDIT_BUDGET
+ * (톡 1번 = 400, 붓 점 1개 = 1). 넘치면 거기서 자른다. 남이 준 프로젝트 파일로 탭이 멈추지 않게 */
+const EDIT_BUDGET = 40000, TAP_COST = 400;
 function normEdits(list) {
   if (!Array.isArray(list)) return [];
   const int = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : null;
   const out = [];
+  let left = EDIT_BUDGET;
   for (const e of list.slice(0, 500)) {
     if (!e || typeof e !== 'object') continue;
     if (e.t === 'e' || e.t === 'r') {
-      const x = int(e.x, 0, 4096), y = int(e.y, 0, 4096), tol = int(e.tol, 0, 442);
-      if (x !== null && y !== null && tol !== null) out.push({ t: e.t, x, y, tol });
+      const x = int(e.x, 0, 1024), y = int(e.y, 0, 1024), tol = int(e.tol, 0, 442);
+      if (x === null || y === null || tol === null) continue;
+      if ((left -= TAP_COST) < 0) break;
+      out.push({ t: e.t, x, y, tol });
     } else if ((e.t === 'be' || e.t === 'br') && Array.isArray(e.p) && e.p.length >= 2) {
-      const r = int(e.r, 1, 256), p = e.p.slice(0, 20000).map(v => int(v, 0, 4096));
-      if (r !== null && p.length >= 2 && !p.includes(null)) out.push({ t: e.t, r, p: p.slice(0, p.length & ~1) });
+      const r = int(e.r, 1, 64), p = e.p.slice(0, 2 * Math.max(0, left)).map(v => int(v, 0, 1024));
+      if (r === null || p.length < 2 || p.includes(null)) continue;
+      left -= p.length >> 1;
+      out.push({ t: e.t, r, p: p.slice(0, p.length & ~1) });
+      if (left <= 0) break;
     }
   }
   return out;
