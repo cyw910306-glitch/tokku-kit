@@ -157,3 +157,20 @@ export function shiftL(h, dL) {
   const [L, C, H] = rgbToOklch(rgb(h));
   return oklch(L + dL, C, H);
 }
+
+/**
+ * 헤이즈 바탕 위 글자색 (그 화면의 목록·제목, render 가 meta.bgText 로). colors = 그 바탕의 대표 색들, base = { text, muted }.
+ * 전부와 본문 4.5·보조 3 이상. 바탕이 어두우면(평균 휘도 < 0.18) 글자 색조의 밝은 색을 L 0.02 씩 올리고,
+ * 밝으면 base 를 그대로 두되 모자랄 때만 L 0.02 씩 내린다 (같은 입력 = 같은 결과).
+ */
+export function textOn(colors, base) {
+  const ok = (c, r) => colors.every(b => contrast(c, b) >= r);
+  const dark = colors.reduce((s, c) => s + luminance(c), 0) / colors.length < 0.18;
+  const fit = (c, r) => {
+    let [L, C, H] = rgbToOklch(rgb(c));
+    if (dark) { L = Math.max(L, r > 3 ? 0.95 : 0.82); C = Math.min(C, 0.03); c = oklch(L, C, H); }
+    while (!ok(c, r) && L > 0 && L < 1) { L += dark ? 0.02 : -0.02; c = oklch(L, C, H); }
+    return c;
+  };
+  return { text: fit(base.text, 4.5), muted: fit(base.muted, 3), dark };
+}

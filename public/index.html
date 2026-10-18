@@ -117,6 +117,19 @@
     background:#fff conic-gradient(#EADFD8 25%,#fff 0 50%,#EADFD8 0 75%,#fff 0) 0 0/16px 16px}
   .chk figcaption{font-size:13px;color:var(--muted);margin-top:6px}
   .chk figcaption.warn{color:var(--warn);font-weight:600}
+  .fixer{margin:12px 0 18px;padding:12px;border:1.5px solid var(--rose);border-radius:16px;background:var(--bg)}
+  .fixer[hidden]{display:none}
+  .fixer .fx-title{font-weight:700;font-size:15px;margin-bottom:8px}
+  .fixer .seg{margin-bottom:8px}
+  .fixer .btn,.fixer .seg button,.btn.fx-open{min-height:44px}
+  .fixer .fx-tools{display:grid;grid-template-columns:1fr 1fr}
+  .fixer .seg[hidden]{display:none}
+  .fx-view{overflow:auto;max-height:min(62vh,520px);border-radius:14px;border:1px solid var(--line);background:#fff;overscroll-behavior:contain}
+  .fx-view canvas{display:block;margin:0 auto;max-width:100%;max-height:min(62vh,520px);touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+    background:#fff conic-gradient(#EADFD8 25%,#fff 0 50%,#EADFD8 0 75%,#fff 0) 0 0/16px 16px}
+  .fixer .fx-hint{font-size:13px;margin:8px 0 0}
+  .fx-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .fx-row [data-fx="done"]{margin-left:auto}
   .peek{display:flex;justify-content:flex-end;position:sticky;bottom:12px;margin-top:8px;pointer-events:none}
   .peek .btn{pointer-events:auto;box-shadow:0 4px 14px rgba(74,52,64,.18)}
   .peek .btn.pulse{animation:pulse .5s ease-in-out 3}
@@ -176,6 +189,9 @@
   .pt-wobble-grid{background:linear-gradient(#BDB3AE 1px,transparent 1px) 0 0/8px 8px,linear-gradient(90deg,#BDB3AE 1px,transparent 1px) 0 0/8px 8px}
   .pt-sprinkle-hearts{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath fill='%2399B8E8' d='M6 9S3 7 3 5.2a1.5 1.5 0 0 1 3-.5 1.5 1.5 0 0 1 3 .5C9 7 6 9 6 9z'/%3E%3Cpath fill='%23F2A5BE' d='M15 19s-3-2-3-3.8a1.5 1.5 0 0 1 3-.5 1.5 1.5 0 0 1 3 .5c0 1.8-3 3.8-3 3.8z'/%3E%3C/svg%3E")}
   .pt-wobble-grid\+sprinkle-hearts{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath fill='%23F2A5BE' d='M11 16s-4-2.6-4-5a2 2 0 0 1 4-.6 2 2 0 0 1 4 .6c0 2.4-4 5-4 5z'/%3E%3C/svg%3E"),linear-gradient(#BDB3AE 1px,transparent 1px) 0 0/8px 8px,linear-gradient(90deg,#BDB3AE 1px,transparent 1px) 0 0/8px 8px}
+  .pt-snow{background:radial-gradient(circle,#8FB3D9 30%,transparent 34%) 0 0/8px 8px,radial-gradient(circle,#B9D0E8 24%,transparent 28%) 4px 4px/8px 8px}
+  .pt-xmas-lights{background:radial-gradient(circle,#D2364A 30%,transparent 34%) 0 2px/11px 11px,radial-gradient(circle,#2F8A4E 30%,transparent 34%) 5px 2px/11px 11px}
+  .pt-snow\+xmas-lights{background:radial-gradient(circle,#D2364A 30%,transparent 34%) 0 2px/11px 11px,radial-gradient(circle,#8FB3D9 30%,transparent 34%) 5px 6px/11px 11px}
   .pt-cubes{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect x='2' y='3' width='6' height='6' rx='1.6' fill='%237FA8E0'/%3E%3Crect x='13' y='6' width='6' height='6' rx='1.6' fill='%23F0CB55'/%3E%3Crect x='6' y='13' width='6' height='6' rx='1.6' fill='%23EE9DB8'/%3E%3C/svg%3E")}
   .bgc{width:46px;height:40px;border:1.5px solid var(--line);border-radius:12px;padding:0;background:none;cursor:pointer}
   .bgc::-webkit-color-swatch-wrapper{padding:3px}
@@ -352,14 +368,15 @@
                 <div class="seg" role="group" aria-label="픽셀 굵기" data-opt="grid" style="margin-top:8px"></div>
               </div>
               <div class="field"><button type="button" class="toggle" data-toggle="pixelBubble" aria-pressed="false">말풍선도 픽셀로<i aria-hidden="true"></i></button></div>
+              <div class="field"><button type="button" class="toggle" data-toggle="hat" aria-pressed="false">캐릭터에 산타모자 씌우기 <small>(말풍선·프사·탭·잠금 그림 전부)</small><i aria-hidden="true"></i></button></div>
               <!-- 배경: 버튼·줄은 app.js 의 BG_SEG / PHOTO_KEYS 표에서 채운다 -->
               <details class="more sub" id="bgMore">
                 <summary>배경 <small>무늬, 색, 내 사진, 구석 캐릭터</small></summary>
                 <div id="bgBox">
                   <div class="field"><span class="lab" id="lPat">무늬 <small id="patNote"></small></span><div class="seg pats" role="group" aria-labelledby="lPat" data-bgk="pattern"></div></div>
-                  <div class="field"><span class="lab" id="lHzM">무지개 헤이즈: 친구탭</span><div class="seg" role="group" aria-labelledby="lHzM" data-bgk="haze.main"></div>
-                    <span class="lab" id="lHzC" style="margin-top:10px">무지개 헤이즈: 채팅방</span><div class="seg" role="group" aria-labelledby="lHzC" data-bgk="haze.chat"></div>
-                    <span class="lab" id="lHzP" style="margin-top:10px">무지개 헤이즈: 잠금</span><div class="seg" role="group" aria-labelledby="lHzP" data-bgk="haze.passcode"></div></div>
+                  <div class="field"><span class="lab" id="lHzM">바탕 헤이즈: 친구탭</span><div class="seg" role="group" aria-labelledby="lHzM" data-bgk="haze.main"></div>
+                    <span class="lab" id="lHzC" style="margin-top:10px">바탕 헤이즈: 채팅방 <small>(눈 오는 밤은 친구탭·잠금만)</small></span><div class="seg" role="group" aria-labelledby="lHzC" data-bgk="haze.chat"></div>
+                    <span class="lab" id="lHzP" style="margin-top:10px">바탕 헤이즈: 잠금</span><div class="seg" role="group" aria-labelledby="lHzP" data-bgk="haze.passcode"></div></div>
                   <div class="field">
                     <label class="lab" for="patSize">무늬 크기 <small data-bgv="patternSize"></small></label><input type="range" id="patSize" min="0" max="2" step="1" data-bgr="patternSize">
                     <label class="lab" for="patOp" style="margin-top:10px">무늬 진하기 <small data-bgv="patternOpacity"></small></label><input type="range" id="patOp" min="0" max="1" step="0.05" data-bgr="patternOpacity">

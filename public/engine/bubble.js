@@ -170,17 +170,106 @@ const DECO_SHAPES = {
   note: (u, v) => ((u - 0.33) / 0.24) ** 2 + ((v - 0.78) / 0.18) ** 2 <= 1
     || (u >= 0.47 && u <= 0.6 && v >= 0.08 && v <= 0.78)
     || inTri(u, v, [[0.47, 0.06], [0.95, 0.3], [0.47, 0.38]]),
+  snowflake: (u, v) => { // 6갈래 가지 + 끝 점
+    const x = u - 0.5, y = v - 0.5, r = Math.hypot(x, y);
+    if (r > 0.47) return false;
+    for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; if (Math.abs(x * Math.sin(a) - y * Math.cos(a)) <= 0.055 && r <= 0.4) return true; }
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; if (Math.hypot(x - 0.4 * Math.cos(a), y - 0.4 * Math.sin(a)) <= 0.07) return true; }
+    return false;
+  },
 };
+// 여러 색 장식 (accent 와 무관한 고정 색): 호랑가시 = 초록 잎 두 장 + 빨간 열매 셋, 산타모자 = hatAt
+export const XMAS = { red: '#D2364A', green: '#2F8A4E', white: '#FFFFFF', line: '#4A2A2E' };
+const inEll = (u, v, cx, cy, rx, ry, a) => { const c = Math.cos(a), s = Math.sin(a), x = u - cx, y = v - cy; return ((x * c + y * s) / rx) ** 2 + ((y * c - x * s) / ry) ** 2 <= 1; };
+const HOLLY = (u, v) => [[0.5, 0.62, 0.12], [0.35, 0.76, 0.11], [0.65, 0.76, 0.11]].some(([x, y, r]) => Math.hypot(u - x, v - y) <= r) ? XMAS.red
+  : inEll(u, v, 0.28, 0.38, 0.28, 0.17, -0.45) || inEll(u, v, 0.72, 0.38, 0.28, 0.17, 0.45) ? XMAS.green : null;
+// 산타모자 (단위 상자, 아래가 털 테두리). 고깔 끝이 오른쪽으로 늘어지고 끝에 방울. d = 바깥 외곽선 두께 (단위)
+const CONE = [[0.14, 0.82], [0.3, 0.42], [0.5, 0.17], [0.7, 0.07], [0.86, 0.15], [0.8, 0.3], [0.7, 0.33], [0.63, 0.5], [0.86, 0.82]];
+const hatPart = (u, v) => Math.hypot(u - 0.85, v - 0.17) <= 0.11 ? XMAS.white
+  : (u >= 0.06 && u <= 0.94 && v >= 0.72 && v <= 0.94 && inRRect(u, v, { x0: 0.06, y0: 0.72, x1: 0.94, y1: 0.94, r: 0.1 })) ? XMAS.white
+    : inPoly(u, v, CONE) ? XMAS.red : null;
+export function hatAt(u, v, d = 0.04) {
+  const c = hatPart(u, v);
+  if (c) return c;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; if (hatPart(u + d * Math.cos(a), v + d * Math.sin(a))) return XMAS.line; }
+  return null;
+}
+const DECO_PAINT = { holly: HOLLY, 'santa-hat': (u, v) => hatAt(u, v, 0.06) };
+
+/** 여러 색 그림 래스터 (w x h px). at(x, y) = 그 점(px 실수 좌표)의 색 '#RRGGBB' | null. ss x ss 평균, binary = 반 이상 덮인 칸만 알파 255 */
+export function paintRaster(w, h, at, ss = 4, binary = false) {
+  const out = new Uint8ClampedArray(w * h * 4), cache = new Map();
+  for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+    let n = 0, r = 0, g = 0, b = 0;
+    for (let j = 0; j < ss; j++) for (let i = 0; i < ss; i++) {
+      const c = at(px + (i + 0.5) / ss, py + (j + 0.5) / ss);
+      if (!c) continue;
+      let v = cache.get(c); if (!v) cache.set(c, v = rgb(c));
+      r += v[0]; g += v[1]; b += v[2]; n++;
+    }
+    if (!n || (binary && n * 2 < ss * ss)) continue;
+    const o = (py * w + px) * 4;
+    out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = binary ? 255 : n / (ss * ss) * 255;
+  }
+  return { width: w, height: h, data: out };
+}
+
+/**
+ * 캐릭터 그림 머리 위에 산타모자 (코드로 그림, 같은 입력 = 같은 결과). 머리 윗변 = 불투명 픽셀 수가 bbox 폭의 40% 이상인 첫 줄
+ * (가는 귀·더듬이는 건너뛴다). 그 줄부터 bbox 높이 20% 띠의 가로 폭을 머리 폭으로 보고 그 62% 크기(단 bbox 높이의 50% 까지,
+ * 옆으로 누운 그림에서 모자가 그림보다 커지지 않게) 모자를 띠 가운데에, 털 테두리가 머리 윗변보다 bbox 높이 8% 아래에 오게 0.18rad 기울여 얹는다.
+ * 모자가 나가는 만큼 캔버스를 넓힌다. binary = 알파 0/255 (이미 도트인 slot 그림). 불투명 픽셀이 없으면 그대로.
+ * ponytail: 머리 = 위쪽의 넓은 줄이라는 어림. 머리가 몸보다 아래인 그림(물구나무 등)은 엉뚱한 데 씌워진다.
+ */
+export function santaHat(img, { binary = false } = {}) {
+  const { width: w, height: h, data } = img;
+  let top = -1, bottom = -1;
+  for (let y = 0; y < h && top < 0; y++) for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3] > 127) { top = y; break; }
+  if (top < 0) return img;
+  for (let y = h - 1; y >= top && bottom < 0; y--) for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3] > 127) { bottom = y; break; }
+  const bh = bottom - top + 1, op = (x, y) => data[(y * w + x) * 4 + 3] > 127;
+  let bx0 = w, bx1 = -1;
+  for (let y = top; y <= bottom; y++) for (let x = 0; x < w; x++) if (op(x, y)) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; }
+  let head = top; // 귀 건너뛰기: 불투명 수가 bbox 폭 40% 이상인 첫 줄
+  for (let y = top; y <= bottom; y++) { let n = 0; for (let x = bx0; x <= bx1; x++) n += op(x, y); if (n >= (bx1 - bx0 + 1) * 0.4) { head = y; break; } }
+  const band = Math.min(bottom + 1, head + Math.max(1, Math.round(bh * 0.2)));
+  let x0 = w, x1 = -1;
+  for (let y = head; y < band; y++) for (let x = 0; x < w; x++) if (op(x, y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
+  const s = Math.max(4, Math.min((x1 - x0 + 1) * 0.62, bh * 0.5)), cx = (x0 + x1 + 1) / 2, by = head + bh * 0.08, ang = 0.18;
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+  // 단위 상자 (u,v) -> 그림 좌표: 털 아래 가운데(0.5, 0.94)를 (cx, by) 에 두고 회전
+  const fwd = (u, v) => { const x = (u - 0.5) * s, y = (v - 0.94) * s; return [cx + x * cos - y * sin, by + x * sin + y * cos]; };
+  const pts = [[-0.05, -0.05], [1.05, -0.05], [1.05, 1.05], [-0.05, 1.05]].map(([u, v]) => fwd(u, v));
+  const hx0 = Math.floor(Math.min(...pts.map(p => p[0]))), hx1 = Math.ceil(Math.max(...pts.map(p => p[0])));
+  const hy0 = Math.floor(Math.min(...pts.map(p => p[1]))), hy1 = Math.ceil(Math.max(...pts.map(p => p[1])));
+  const pl = Math.max(0, -hx0), pt = Math.max(0, -hy0), W = Math.max(w + pl, hx1 + pl), H = h + pt;
+  const out = { width: W, height: H, data: new Uint8ClampedArray(W * H * 4) };
+  for (let y = 0; y < h; y++) out.data.set(data.subarray(y * w * 4, (y + 1) * w * 4), ((y + pt) * W + pl) * 4);
+  const d = Math.max(0.03, 1.5 / s); // 외곽선은 작은 그림에서도 1.5px 이상
+  const hat = paintRaster(hx1 - hx0, hy1 - hy0, (x, y) => { // 거꾸로 회전해서 단위 상자 좌표로
+    const X = x + hx0 - cx, Y = y + hy0 - by;
+    return hatAt((X * cos + Y * sin) / s + 0.5, (Y * cos - X * sin) / s + 0.94, d);
+  }, 3, binary);
+  composite(out, hat, hx0 + pl, hy0 + pt);
+  out.hatTop = pt; // 모자 때문에 위로 늘어난 줄 수 (빼꼼 크롭이 원래 그림 기준 65% 를 유지하게, render.variant)
+  return out;
+}
 const DECO_DOTS = {
   sparkle: ['..#..', '..#..', '#####', '..#..', '..#..'],
   heart: ['##.##', '#####', '#####', '.###.', '..#..'],
   star: ['..#..', '..#..', '#####', '.###.', '.#.#.'],
   note: ['..###', '..#.#', '..#..', '###..', '###..'],
+  snowflake: ['#.#.#', '.###.', '##.##', '.###.', '#.#.#'],
+  holly: ['gg.gg', 'ggggg', '.grg.', '.rrr.', '..r..'],   // g 초록 r 빨강 w 하양 k 선 (# = accent)
+  'santa-hat': ['..rrw', '.rrr.', 'rrrr.', 'wwwww', 'wwwww'],
 };
+const DOT_COLORS = { g: XMAS.green, r: XMAS.red, w: XMAS.white, k: XMAS.line };
 
 /** 장식 그림 (s pt 정사각, @k). 픽셀이면 5x5 도트 (알파 0/255) */
 export function decoImage(kind, s, k, pixel, color) {
   const n = Math.round(s * k), [R, G, B] = rgb(color), out = new Uint8ClampedArray(n * n * 4);
+  if (pixel && DECO_PAINT[kind]) return paintRaster(n, n, (x, y) => { const c = DECO_DOTS[kind][Math.floor(y * 5 / n)][Math.floor(x * 5 / n)]; return c === '.' ? null : DOT_COLORS[c] || color; }, 1);
+  if (DECO_PAINT[kind]) return paintRaster(n, n, (x, y) => DECO_PAINT[kind](x / n, y / n));
   const shape = DECO_SHAPES[kind];
   if (!shape) throw new Error(`unknown deco ${kind}`);
   const cov = pixel ? null : rasterize(n, n, n, shape);

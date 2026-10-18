@@ -49,8 +49,11 @@ Options = {
   bubbleShape: 'round',         // 'round'(반경 12/10) | 'soft'(6) | 'square'(2) | 'note'(포스트잇: 반경 0, 꼬리·하이라이트 없음). pixelBubble 이 우선
   outline: 'normal',            // 'thin' 0.8 | 'normal' 1.2 | 'thick' 2.2 pt (받은 쪽 +0.3), 픽셀 1/1/2칸 | 'none' 0 (받은 쪽도 0, 면 색만)
   outlineColor: 'auto',         // 'auto'(sendLine/recvLine) | 'dark'(text)
-  deco: 'none',                 // 'none' | 'sparkle' | 'heart' | 'star' | 'note' : 캐릭터 반대쪽 위 cap 안 (01 만, accent 색)
-  fillTone: 'palette',          // 'palette' | 'white' | 'cream' | 'pastel' : 말풍선 면 (사용자 색보다 우선). pastel = 보낸 쪽 sendFill 그대로, 받은 쪽 = sendFill 색상환 +120도 L .93 C .04~.05
+  deco: 'none',                 // 'none' | 'sparkle' | 'heart' | 'star' | 'note' | 'snowflake' : 캐릭터 반대쪽 위 cap 안 (01 만, accent 색)
+                                //   | 'holly' (초록 잎+빨간 열매) | 'santa-hat' (작은 산타모자) : 고정 크리스마스 색 (accent 무관)
+  fillTone: 'palette',          // 'palette' | 'white' | 'cream' | 'pastel' | 'xmas' : 말풍선 면 (사용자 색보다 우선). pastel = 보낸 쪽 sendFill 그대로, 받은 쪽 = sendFill 색상환 +120도 L .93 C .04~.05
+                                //   xmas = 보낸 쪽 따뜻한 빨강 파스텔(OKLCH .87 .07 22, 테두리 .64 .14 22), 받은 쪽 연초록(.95 .045 150, 테두리 .74 .08 150). 예외: o.colors 에 직접 넣은 키는 사용자 값이 이김
+  hat: false,                   // true = 산타모자 (코드로 그림): 캐릭터 A·B 와 모든 slot 그림 머리 위에 (말풍선 perch/peek/hang/stand·02 빼꼼, 프사, 아이콘, 탭, 잠금, 배경 구석)
   groupChar: 'none',            // 'none' | 'peek' : 이어 보낸(02) 말풍선 위 작은 빼꼼 (xs 상자, 꼬리·장식 없음). stand 에서는 안 씀 (02 정렬 띠 우선)
   peekPos: 'corner',            // 'corner' | 'center' : 빼꼼 자리 (layout peek 의 01, groupChar peek 의 02). 다른 레이아웃은 그대로
   textTone: 'palette',          // 'palette' | 'mono' : mono = text #383838, muted #5E5E5E, 목록 선택 배경 text 알파 .05, 입력창 보내기·버튼·섹션 제목·공유바 이름 = text (사용자 색보다 우선)
@@ -63,15 +66,15 @@ Options = {
 }
 // 배경 (presets.resolveBackground 가 검사·기본값 채움. 같은 결과를 다시 넣어도 같음)
 Background = {
-  pattern: 'dots'|'check'|'grid'|'stars'|'hearts'|'cubes'|'wobble-grid'|'sprinkle-hearts'|'none',   // '+' 로 겹침 가능 (예 'wobble-grid+sprinkle-hearts'). 기본 = 프리셋: cream-dots→dots, pastel-check→check, retro-game→'grid+stars', plain-minimal→none
+  pattern: 'dots'|'check'|'grid'|'stars'|'hearts'|'cubes'|'wobble-grid'|'sprinkle-hearts'|'snow'|'xmas-lights'|'none',   // '+' 로 겹침 가능 (예 'wobble-grid+sprinkle-hearts'). 기본 = 프리셋: cream-dots→dots, pastel-check→check, retro-game→'grid+stars', plain-minimal→none
   patternSize: 's'|'m'|'l',      // 0.75 / 1 / 1.4 배
-  patternOpacity: null|0~1,      // null = 무늬 기본(PATTERN_ALPHA: dots .24, check .3, grid .1, stars .28, hearts .22, cubes .16, wobble-grid .2, sprinkle-hearts .9). 겹친 무늬는 첫 무늬 기준 비율
+  patternOpacity: null|0~1,      // null = 무늬 기본(PATTERN_ALPHA: dots .24, check .3, grid .1, stars .28, hearts .22, cubes .16, wobble-grid .2, sprinkle-hearts .9, snow .85, xmas-lights 1). 겹친 무늬는 첫 무늬 기준 비율
   patternColors: null|['#RRGGBB' x1~3],   // 무늬 색 직접 (dots·cubes·hearts·sprinkle-hearts 가 차례로 돌려 씀). null = 팔레트 (cubes 는 accent 색상환 3등분)
   patternArea: { main|chat: 'full'|'top'|'none', passcode: 'full'|'none' },   // 무늬 넣을 곳. full = 헤더 아래 전체, top = y60~420 띠만 (BG.topBand), 기본 전부 full
   color: null|'#RRGGBB',         // null = palette.bg
   photo: { main|chat|passcode: { fit: 'cover'|'contain', blur: 0~12 (pt), dim: 0~0.8 (기본 0.15), auto: true } },   // assets 의 사진이 있을 때만. auto = 글자 대비 모자라면 dim 자동 상향 (최대 .85)
   corner: { main: 'br'|'bl'|'tr'|'tl'|'none' (기본 br), chat: (기본 bl), size: 's'|'m'|'l', opacity: null|0.15~1 (null = main .42, chat .38) },
-  haze: { main|chat|passcode: 'none'|'rainbow' },   // 무지개 헤이즈 (흐린 파스텔 무지개 + 구름). 배경색 위·무늬 아래, 사진이 있으면 사진 우선. 기본 전부 none
+  haze: { main|passcode: 'none'|'rainbow'|'snow-night'|'xmas-glow', chat: 'none'|'rainbow'|'xmas-glow' },   // 바탕 헤이즈. 배경색 위·무늬 아래, 사진이 있으면 사진 우선. 기본 전부 none. 채팅방 snow-night 는 오류 (3절)
 }
 // 배경 사진·자리별 그림 (전부 선택, 빈 자리 = 예전 그림). 모르는 이름·깨진 Img 는 오류 (checkAssets)
 Assets = {
@@ -91,7 +94,11 @@ Assets = {
 }
 Palette = { bg, tabBg, line, text, muted, accent, sendFill, sendSel, sendLine, recvFill, recvSel, recvLine, keypad, shadow, profileBg? } // '#RRGGBB'. profileBg 는 선택 (없으면 bg 틴트, meta.palette 에는 늘 채워짐). UI: 앞 5색 + '색 더 보기' 에 나머지 전부
 
-prepareCharacter(img: Img, {tolerance=24}) -> Img        // 투명이면 그대로, 아니면 keying.removeEdgeBackground 후 bbox crop
+prepareCharacter(img: Img, {tolerance=24, edits=[]}) -> Img   // keying.keyBase(줄이기 1024 + 투명 아니면 removeEdgeBackground) → edits(손보기) 재생 → bbox crop
+keying.eraseRegion(img, x, y, tol=36) -> Img             // 손보기 '톡 지우기': (x,y) 색과 거리 <= tol 로 4방향 이어진 보이는(알파>10) 픽셀을 투명으로. 새 그림, 결정적
+keying.restoreRegion(orig, img, x, y, tol=36) -> Img     // '톡 되살리기': orig 의 (x,y) 색 기준으로 이어지면서 img 에서 알파가 달라진 픽셀을 orig 로. 새 그림
+keying.stamp(img, orig, x0,y0,x1,y1, r, restore)         // 붓 한 칸(선분 둘레 r): 지우기(알파 0) 또는 orig 로 복원. img 를 바로 고침
+keying.applyEdit(img, orig, e) / applyEdits(base, orig, edits) -> Img   // e = {t:'e'|'r', x, y, tol} | {t:'be'|'br', r, p:[x0,y0,x1,y1,...]}. 좌표 = keyBase 그림(긴 변 1024 이하) 픽셀
 palette.derive(img: Img) -> Palette                       // k-means(k=5) 주색 → OKLCH 파생 → WCAG 보정 (본문 4.5, 보조 3)
 pixelize(img: Img, grid, {colors=16}) -> Img              // 1px = 1칸 스프라이트 (알파 0/255만, 선 보존, 외곽선 1칸)
 async buildTheme(charA: Img, charB: Img|null, opts, assets?) -> { files: Map<path, Blob>, css: string, meta }
@@ -105,7 +112,7 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
 ```
 - 브라우저 캔버스는 `render.js` 안의 `makeCanvas(w,h)` 하나로만 (OffscreenCanvas 우선, 없으면 document.createElement). `imageSmoothingEnabled` 는 픽셀 그림일 때 false.
 - iOS 메모리: 큰 캔버스(1125x2250, 1200x1200)는 하나씩 만들고 toBlob 후 width=height=0 으로 해제.
-- `meta` = { bubbles: {'01': B, '02': B} (B = {W,H,X,Y,top,ins:[t,l,b,r]} pt, 보낸 쪽 기준), palette, textTone, themeId, themeName }. buildCss 는 textTone 'mono' 일 때 템플릿의 선택 배경·보내기 버튼·섹션 제목·공유바 이름 줄만 바꾼다 (palette 면 예전 CSS 그대로).
+- `meta` = { bubbles: {'01': B, '02': B} (B = {W,H,X,Y,top,ins:[t,l,b,r]} pt, 보낸 쪽 기준), palette, textTone, background, bgText, themeId, themeName }. bgText = { main?, passcode? : { text, muted, dark, bg } } (크리스마스 헤이즈 화면만, 3절). buildCss 는 textTone 'mono' 일 때 템플릿의 선택 배경·보내기 버튼·섹션 제목·공유바 이름 줄만 바꾼다 (palette 면 예전 CSS 그대로).
 - 템플릿 `TEMPLATES[i].bg` (선택) = 그 템플릿이 까는 배경 (Background 일부). UI 는 지금 배경 위에 덮는다 (사진·색·구석은 그대로). 포스트잇 계열 = 채팅방 손그림 격자(+하트), 친구탭·잠금 무지개 헤이즈.
 
 ## 3. 규격 (기준 구현과 동일, 수치는 presets.js 한 곳)
@@ -159,10 +166,21 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
   - findBtnAddFriend 84x68/126x102: sendFill 알약 + 사람+플러스(text).
   - 캐릭터가 픽셀이면 코드 아이콘·도트·버튼도 1pt=1px 로 그린 뒤 알파 이진화 + nearest 확대.
 - 프리셋 4종 (색은 Palette 에서, 패턴만 다름): cream-dots(작은 둥근 사각 도트 3색 엇갈림), pastel-check(연한 체크), retro-game(픽셀 격자 선 + 별 도트, 픽셀 UI 어울림), plain-minimal(무늬 없음).
-- 무늬 9종: dots(위), check(위), grid(격자 선), stars(십자 5칸 도트 별), hearts(작은 하트, accent/sendLine 번갈아), cubes(3색 둥근 사각, 크기·간격은 dots 와 같음. 기본 색 = accent 색상환 3등분 L .74, patternColors 로 직접),
+- 무늬 11종 (크리스마스 snow·xmas-lights 는 위 크리스마스 항목): dots(위), check(위), grid(격자 선), stars(십자 5칸 도트 별), hearts(작은 하트, accent/sendLine 번갈아), cubes(3색 둥근 사각, 크기·간격은 dots 와 같음. 기본 색 = accent 색상환 3등분 L .74, patternColors 로 직접),
   wobble-grid(손그림 격자: 96px 간격 선, 90px 마다 이음점을 ±2.6px 흔들고 2차 곡선으로 이음, line 색, 시드 17), sprinkle-hearts(460px 칸마다 60% 확률로 작은 하트 하나, 칸 안 위치·크기 12~19px·기울기 무작위, 파랑·분홍·연두·노랑 파스텔 4색, 시드 29), none.
   두 무늬는 mulberry32 고정 시드라 같은 입력 = 같은 바이트. 구석 그림 자리 비우기는 흩뿌린 무늬만 (wobble-grid 가 있으면 check·grid 처럼 그대로).
 - 무지개 헤이즈(haze rainbow): 저채도 무지개 5색(OKLCH L .9 C .06) 큰 원형 그라데이션 + 오른쪽 밖에 중심을 둔 흐린 무지개 아치(원형 그라데이션 고리 4띠) + 흰 구름 4개를 고정 자리에 겹침. ctx.filter 없이 그라데이션만 (iOS 사파리, 결정적). 잠금 맨 아래 keypad 그라데이션은 헤이즈 위에도 그대로.
+- 크리스마스 (2026-10-18):
+  - 무늬 snow: 150px 칸마다 눈점 2개(반경 3~8px) + 30% 확률 큰 눈송이(반경 14~26px, 6갈래+V 가지, 선 3px), mulberry32 시드 41, 칸마다 난수 10개. 색 = patternColors[0] 또는 밤하늘 화면이면 흰색, 아니면 연하늘(OKLCH .82 .05 240). 흩뿌린 무늬라 구석 그림 자리는 비움. 무늬 자리 경계에 걸치는 눈은 통째로 뺀다(반쪽 눈송이 없음). 밤하늘 화면은 밝은 글자가 흰 눈에 묻히지 않게 BG.nightText 글자 자리에 닿는 눈도 뺀다(친구탭 x 0~700 이름·상태메시지 칸, 잠금 y 360~680 제목·점 줄): 친구탭 눈은 오른쪽에만.
+  - 무늬 xmas-lights: 무늬 자리 맨 위(max(y0, BG.safeTop 150)+24px, 잠금처럼 무늬 자리가 0 부터여도 상태 막대·시계 아래)에 375px 마다 70px 처지는 포물선 줄(#3E4A3A 3px) + 46px 간격 전구(꼭지 + 8x12 타원 + 흐린 빛 반경 34px + 흰 하이라이트), 빨강·초록·금색 돌려 씀(patternColors 로 직접). full 이면 헤더 바로 아래에 늘어진다(친구탭은 내 프로필 줄, 채팅방은 첫 메시지 줄 위라 글자를 가린다. 템플릿은 잠금에만 쓴다).
+  - 헤이즈 snow-night: 남색 세로 그라데이션(OKLCH .24 .06 268 → .36 .07 255) + 오른쪽 위 달빛(흰색 18%) + 아래 눈 언덕 두 겹(.44 / .5, 달빛 아래 눈이라 진한 회청색: 밝은 글자 대비 유지). xmas-glow: 크림(#FFF4E4) 75% + 흐린 빨강·초록·금색 큰 원 5개 + 보케 14개(시드 53). 둘 다 그라데이션만 (결정적).
+  - 글자 대비 자동 보정 (`palette.textOn(colors, {text, muted})`): 크리스마스 헤이즈가 깔린 친구탭·잠금(사진 없을 때)은 그 바탕의 대표 색들(`render.HAZE_TEXT_BG`) 전부와 본문 4.5·보조 3 이 되게. 바탕이 어두우면(평균 휘도 < .18) 같은 색조 밝은 글자(L ≥ .95 / .82 에서 0.02 씩 올림), 밝으면 팔레트 글자 그대로 두고 모자랄 때만 내림.
+    결과는 meta.bgText, buildCss 가 그 화면 줄만 바꾼다: 친구탭 = HeaderStyle-Main 글자, MainViewStyle-Primary 글자 전부(+ 밤하늘이면 background-color = 밤하늘 아래 색), SectionTitleStyle-Main 글자, FeatureStyle-Primary. 잠금 = LabelStyle-PasscodeTitle 만 (키패드 글자는 keypad 바탕이라 그대로). 말풍선 글자·탭바는 그대로.
+  - **채팅방은 밝은 헤이즈만** (none·rainbow·xmas-glow): 채팅방 친구 이름·시간 글자 색은 테마 CSS 에 자리가 없어 카카오 기본(진한 색)이라 밤하늘 위에서 안 보인다. resolveBackground 가 haze.chat 'snow-night' 를 오류로 막고 UI 는 버튼을 안 보인다.
+    알려진 한계: MainViewStyle-Primary 는 친구탭 말고 다른 목록 화면에도 쓰여서, 밤하늘이면 그 화면들도 밤하늘 색 바탕 + 밝은 글자가 된다 (배경 그림은 친구탭만).
+  - 산타모자 (`bubble.santaHat(img, {binary})`, hat 옵션): 머리 윗변 = 불투명 픽셀 수가 bbox 폭 40% 이상인 첫 줄(가는 귀·더듬이는 건너뛰어 귀 끝에 안 걸린다). 거기서 bbox 높이 20% 띠의 가로 폭을 머리 폭으로, 그 62% 크기(단 bbox 높이 50% 까지: 옆으로 누운 그림도 캔버스가 1.5배 안) 모자를 띠 가운데에, 털 테두리 아래가 머리 윗변에서 bbox 높이 8% 아래에 오게 0.18rad 기울여 얹는다. 빨강 고깔(끝이 오른쪽으로 늘어짐) + 흰 털 테두리 + 흰 방울 + 진한 외곽선(≥1.5px), 3x3 슈퍼샘플. 캔버스는 모자만큼 위·옆으로 넓히고 `hatTop`(위로 늘어난 줄)을 남겨 빼꼼 크롭이 원래 그림 기준 65% 를 지킨다(얼굴이 안 잘림). 이미 도트인 slot 그림(slotsArePixel)은 binary(알파 0/255), pixelChar 는 모자 씌운 뒤 pixelize. 같은 입력 = 같은 결과.
+  - 장식 holly·santa-hat 은 고정 색 여러 겹(`bubble.paintRaster`), 픽셀 말풍선이면 5x5 도트(g r w 글자 표). snowflake 는 accent 한 색.
+  - 템플릿 3개: xmas-night '눈 오는 밤'(perch, star, xmas, hat, 친구탭·잠금 snow-night + snow, 채팅방 위쪽 띠 snow), xmas-sticky '포스트잇 크리스마스'(sticky-peek 모양 + xmas 면 + hat, 세 화면 xmas-glow, xmas-lights 는 잠금에만), holly-card '호랑가시 카드'(soft, cream 면, holly, 친구탭·잠금 xmas-glow).
 - 키잉(`keying.removeEdgeBackground(img, tol)`): **네 변에서 시작하는 연결 영역만** 지움(BFS), 시작색과 RGB 거리 ≤ tol. 안쪽 같은 색은 안 지움. 가장자리 1px 페더 금지(알파 0/255). 투명 픽셀이 5% 이상이면 이미 투명 PNG 로 보고 건너뜀.
 - 글자 대비: textTone mono(#383838 / #5E5E5E)는 derive 결과의 bg·tabBg·sendFill·recvFill(pastel 포함)·keypad 와 본문 4.5, 보조 3 이상 (여러 색상 단위 테스트).
 - palette: 불투명 픽셀 샘플 ≤ 20000, k=5 k-means(고정 시드), 채도×빈도로 주색. OKLCH 로 bg(L≥0.96, C 낮게), sendFill(주색 L 0.88), line(L 0.55), text(L 0.27), muted(text 와 bg 사이, bg 대비 ≥ 3), accent(주색 L 0.5, bg 대비 ≥ 4.5). recvFill #FFFFFF, recvLine 은 bg 와 대비 ≥ 1.8 되게.
@@ -171,7 +189,7 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
 ## 4. UI (index.html + app.js + mock.js)
 - 한 페이지: ①랜딩 히어로(데모 젤리 테마 폰 목업 + [내 사진으로 만들기]) ②빌더 ③특징 3개(말풍선 위 캐릭터 / 픽셀 / 커플) ④무료·오픈소스 안내 ⑤FAQ(설치 방법, iOS 전용) ⑥푸터(약관 링크, ㈜카카오와 무관 고지).
 - 빌더 단계: 1 사진 넣기(내 캐릭터 필수, 상대 선택=커플) → 2 다듬기(투명 아니면 키잉 허용치 슬라이더 + 체커보드 미리보기, 투명이면 자동 건너뜀) → 3 꾸미기(프리셋 4, 말풍선 위 캐릭터 없음/올라앉기/바깥 서기, 캐릭터 픽셀 토글+격자 32/48/64, 말풍선 픽셀 토글, 색 스와치 5개 탭해서 바꾸기(input type=color), 테마 이름) → 4 받기.
-  더 꾸미기: 빼꼼 자리(모서리/가운데 위), 이어 보낸 말풍선에도 캐릭터(없음/작게 빼꼼, 서기면 끔), 말풍선 모양 포스트잇, 테두리 없음, 바탕색 파스텔 두 색, 글자 색(사진 색/무채색), 잠금 키패드 색(연하게/캐릭터 색). 배경: 무늬 손그림 격자·콕콕 하트·격자+하트, 무지개 헤이즈 화면별. 자리별 그림: '모든 탭 같은 그림'(평소·눌렀을 때), '4칸 같은 그림'(평소·눌렀을 때) 일괄 칸.
+  더 꾸미기: 빼꼼 자리(모서리/가운데 위), 이어 보낸 말풍선에도 캐릭터(없음/작게 빼꼼, 서기면 끔), 말풍선 모양 포스트잇, 테두리 없음, 바탕색 파스텔 두 색, 글자 색(사진 색/무채색), 잠금 키패드 색(연하게/캐릭터 색). 배경: 무늬 손그림 격자·콕콕 하트·격자+하트, 바탕 헤이즈(무지개·눈 오는 밤·크리스마스 빛) 화면별(채팅방은 눈 오는 밤 없음), 무늬 눈송이·꼬마전구·눈+전구. 산타모자 토글, 장식 눈송이·호랑가시·산타모자, 말풍선 바탕색 크리스마스. 자리별 그림: '모든 탭 같은 그림'(평소·눌렀을 때), '4칸 같은 그림'(평소·눌렀을 때) 일괄 칸.
 - 미리보기: 폰 목업 탭 4개(친구 / 채팅 / 잠금 / 말풍선 테스트). 말풍선 테스트에 'ㅋ', 한 줄, 다섯 줄 메시지. 옵션 바꿀 때마다 디바운스(300ms) 후 buildTheme 다시 → object URL 교체(이전 URL revoke). 모바일: 단계 아래 미리보기, 데스크톱(≥960px): 오른쪽 고정.
 - 목업은 실제 생성 PNG 로 그림 (기준 구현 목업의 레이아웃·말풍선 border-image 규칙 재사용: min-width W / min-height H, slice = Y·3, (W-X-1)·3, (H-Y-1)·3, X·3 fill, 폭 Y,(W-X-1),(H-Y-1),X px, border-width = 인셋).
 - 받기:
@@ -179,7 +197,8 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
   - 커플이면 파일 2개.
   - 내려받기: iOS 이고 `navigator.canShare({files})` 되면 [카카오톡으로 보내기(공유)] 를 1순위 버튼으로 (공유 시트 → 카카오톡 → 나에게). 아니면 a[download] blob. PC 는 다운로드 + "PC 카카오톡 나와의 채팅에 끌어 놓기 → 아이폰에서 파일 탭" 안내.
   - 설치 안내 카드(그림 없이 단계 4개), ".zip 으로 바뀌면 이름 끝을 .ktheme 로" 포함.
-- 프로젝트 저장/불러오기: .json (원본 dataURL, options, id).
+- 프로젝트 저장/불러오기: .json (원본 dataURL, options, id). 캐릭터 a·b 와 slots 각 항목은 { src, tol, edits? } (edits = 손보기 단계 목록, 있을 때만 씀. v 는 3 그대로: 옛 파일은 edits 없음 = 손보기 없음, 옛 앱은 모르는 키라 무시). 불러올 때 normEdits 로 도구·정수 좌표·상한(500 단계, 붓 점 2만) 검증.
+- 손보기 (다듬기 단계의 캐릭터마다 [손보기], 자리별 그림 칸마다 [손보기]): 자동 지우기가 못 가른 곳(바닥 그림자, 흰 배경 위 흰 테두리, 팔 사이 갇힌 배경, 남은 얼룩)을 손으로. 도구 = 톡 지우기 / 톡 되살리기 / 지우개 붓 / 되살리기 붓(크기 작게·보통·크게 = 긴 변의 1.2·2.5·5%), 되돌리기, 처음으로, 2배 보기, 체커 배경. 화면은 페이지 안에 펼쳐지는 칸(덮개·모달 없음, iOS 사파리 덮개 click 함정 회피). 캔버스는 touch-action:none + 포인터 이벤트, 두 손가락으로 끌면 화면 이동(그리던 붓은 취소). 결과는 c.edits 에 쌓여 prepareCharacter(edits) → cropToAlpha → 미리보기 → 받기·저장으로 그대로 흐르고, 세기를 바꿔도 단계는 남아 새 바탕 위에 다시 재생된다. 되돌리기는 단계를 하나 빼고 처음부터 재생.
 - 공유 카드: [자랑하기] → 채팅 목업 PNG 1080x1920(캔버스로 직접 그림, 사이트 주소 작게).
 - 접근성: 버튼은 button, 토글은 aria-pressed, 대비 4.5, 포커스 링.
 - 디자인: 크림 #FFF6EE 바탕, 진한 자두 #4A3440 글자, 포인트 #B23A64. 제목 Galmuri11(픽셀), 본문 Pretendard. 귀엽고 깔끔. 헤더 단색.
@@ -188,9 +207,10 @@ bubbleRules(meta) -> string                                // 목업용 CSS (bor
 - 없음 (2026-10-18 무료·비영리 전환으로 `api/license.js`·Gumroad 확인 제거). `vercel.json`: outputDirectory public, `/engine/*` 캐시 1일, 보안 헤더(X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin).
 
 ## 6. 테스트·검증 (통과해야 완료)
-- `node --test tests/` : pixelize(알파 0/255, 색수 ≤ colors+2), presets 불변식 4개(모든 레이아웃×스타일), palette WCAG, keying(가장자리 연결만 지움, 안쪽 같은 색 보존), pack(STORE, 최상위 구조), 배경 설정·구석 자리·assets 검사.
+- `node --test tests/` : pixelize(알파 0/255, 색수 ≤ colors+2), presets 불변식 4개(모든 레이아웃×스타일), palette WCAG, keying(가장자리 연결만 지움, 안쪽 같은 색 보존, 손보기 eraseRegion·restoreRegion·붓·edits 재생 결정성), pack(STORE, 최상위 구조), 배경 설정·구석 자리·assets 검사.
   - 렌더 검사(tests/.pw 의 playwright 로 헤드리스 chromium, 없으면 건너뜀): 회귀 = slot·배경 없이 만든 66장+CSS 픽셀 해시가 `tests/fixtures/render-golden.json`(기능 추가 전 엔진, chromium 130. 2026-10-18 stand 재설계로 retro 케이스의 01 말풍선 8장+CSS 만 다시 찍음, 나머지 3 케이스는 그대로. 같은 날 체험판 제거로 default·plain 의 배경 3장+CSS 다시 찍음. 같은 날 stand 02 정렬(pad)·서기 채팅방 구석 기본 오른쪽 아래로 retro 의 02 말풍선 8장+채팅방 배경+CSS 다시 찍음) 과 같음 / charB 는 받은 말풍선에만, 나머지는 charA / stand 레퍼런스 배치 / 체험판 모드 없음 / slot 마다 제 파일에만 쓰이고 나머지는 그대로 / 말풍선 slot 은 제 레이아웃에만, 커플 상대 폰은 받은 쪽에만 / 픽셀 slot 정수배·알파 0/255 / 무늬 7종 서로 다름·헤더 민무늬·none 단색·잠금 맨 아래 keypad / 사진 cover·contain·dim·헤더 띠·blur / 구석 4방향·none.
   - 포스트잇·빼꼼 가운데·02 빼꼼·무채색 글자·키패드 캐릭터 색·일괄 slot·새 무늬 (2026-10-18 추가, 골든은 안 바뀜): note 꼬리 자리 비움·각진 모서리·none 은 면 색만 / center 상자·글자 틀이 몸통 가운데 / 02 빼꼼 몸통 끝이 01 과 같은 x / mono 대비(12 색상) + CSS 선택 배경·버튼·섹션 제목·공유바 이름만 바뀜 / ...All 펼침·칸별 우선 / sticky-peek 두 번 빌드 = 같은 해시, 키패드 = sendFill·눌림 흰 원, 새 무늬·헤이즈 서로 다른 그림.
+  - 크리스마스 (2026-10-18 추가, 골든은 안 바뀜): 새 무늬·헤이즈 설정·채팅방 밤하늘 오류 / textOn 12 색상 × palette·mono × 두 헤이즈 대비 / xmas 면 대비·사용자 키 우선 / css bgText 바뀌는 줄만 / santaHat 결정성·자리·크기 55~75%·도트 알파 / 장식 3종 둥근·픽셀·늘이는 점 / 렌더: 눈 오는 밤 두 번 빌드 = 같은 해시, 밤하늘 어두움, 모자가 프사·말풍선·02 빼꼼에, 사진 화면은 글자 교체 없음, 무늬·헤이즈 6종 서로 다른 그림.
   - 골든 다시 만들기(엔진 그림을 일부러 바꿨을 때만): `TOKKU_PUBLIC=<옛 public> UPDATE_GOLDEN=1 node --test tests/`.
 - `scripts/verify_ktheme.py x.ktheme` : zip 최상위 = KakaoTalkTheme.css + Images/ 만, 모든 엔트리 STORE, 파일 집합 = ref 66장, 말풍선 외 크기 = ref, CSS 참조 파일 존재, CSS 말풍선 cap/인셋 파싱 후 이미지 크기와 일치 + 늘이는 열·행 균일, ID 형식 `com.kakao.talk.theme.tokku[0-9a-f]{12}`.
-- `tests/e2e.mjs` (npx playwright@1.48.2, chromium + webkit 헤드리스, 창 띄우지 말 것): `python3 -m http.server` 로 public/ 서빙 → 데모 젤리로 layout 5 × pixelBubble 2 × charSize 3 표본(none 은 m 만, 모양·외곽선·장식·면 성향은 돌려 가며) 26 + TEMPLATES 전부 + 커플 1 + 레트로 픽셀 1 + 배경·사진·자리별 그림 3(일반, 픽셀, 커플) 을 엔진으로 빌드해 .ktheme 저장 → 전부 verify_ktheme.py 통과. 390px 폭에서 가로 스크롤 없음, 콘솔 에러 0, 랜딩 템플릿 썸네일 전부 로드, 옛 v1 프로젝트 .json 불러오기. UI 흐름에서 레트로 무늬(grid+stars)·구석 왼쪽 위·친구탭 사진·자리별 그림 3칸을 고른 뒤 엔진에 실제로 넘어간 인자(/engine/index.js 를 기록용 껍데기로 바꿔치기)를 확인하고, v3 프로젝트 저장 → 다시 불러오기로 복원.
+- `tests/e2e.mjs` (npx playwright@1.48.2, chromium + webkit 헤드리스, 창 띄우지 말 것): `python3 -m http.server` 로 public/ 서빙 → 데모 젤리로 layout 5 × pixelBubble 2 × charSize 3 표본(none 은 m 만, 모양·외곽선·장식·면 성향은 돌려 가며) 26 + TEMPLATES 전부 + 커플 1 + 레트로 픽셀 1 + 새 옵션 고정 표본 + 크리스마스 고정 2(픽셀 모자 눈 오는 밤, 커플 서기 크리스마스 빛) + 배경·사진·자리별 그림 3(일반, 픽셀, 커플) 을 엔진으로 빌드해 .ktheme 저장 → 전부 verify_ktheme.py 통과. 390px 폭에서 가로 스크롤 없음, 콘솔 에러 0, 랜딩 템플릿 썸네일 전부 로드, 옛 v1 프로젝트 .json 불러오기. UI 흐름에서 레트로 무늬(grid+stars)·구석 왼쪽 위·친구탭 사진·자리별 그림 3칸을 고른 뒤 엔진에 실제로 넘어간 인자(/engine/index.js 를 기록용 껍데기로 바꿔치기)를 확인하고, v3 프로젝트 저장 → 다시 불러오기로 복원. 손보기 1회(사진 JPG 가운데 톡 지우기 → 붓 → 되돌리기 → 저장 edits 1개 → 불러온 뒤 다듬기 결과 같음).

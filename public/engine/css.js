@@ -45,7 +45,20 @@ const MONO = [
   [/(DirectShareBarName \{ -ios-text-color: )\{\{accent\}\}/, '$1{{text}}'],
 ];
 
-/** meta = { bubbles: {'01','02'}, palette, themeId, themeName, textTone? } -> CSS */
+// 헤이즈 위 글자 (meta.bgText.main / .passcode = { text, muted, bg }): 친구탭 머리글·목록·섹션 제목·안내 글자, 잠금 제목만 그 색.
+// bg (밤하늘) 가 있으면 목록 바탕색도 그 색 (배경 그림이 없는 화면에서도 밝은 글자가 보이게). 블록 하나씩만 바꾼다
+const BG_TEXT = {
+  main: [
+    ['HeaderStyle-Main', b => b.replace(/\{\{text\}\}/g, '{{mainText}}').replace(/\{\{muted\}\}/g, '{{mainMuted}}')],
+    ['MainViewStyle-Primary', (b, t) => b.replace(/\{\{text\}\}/g, '{{mainText}}').replace(/\{\{muted\}\}/g, '{{mainMuted}}')
+      .replace(/(\n\s+)background-color: \{\{bg\}\}/, t.bg ? '$1background-color: {{mainBg}}' : '$&')],
+    ['SectionTitleStyle-Main', b => b.replace(/-ios-text-color: \{\{(accent|text)\}\}/, '-ios-text-color: {{mainText}}')],
+    ['FeatureStyle-Primary', b => b.replace(/\{\{muted\}\}/, '{{mainMuted}}')],
+  ],
+  passcode: [['LabelStyle-PasscodeTitle', b => b.replace(/\{\{text\}\}/, '{{passText}}')]],
+};
+
+/** meta = { bubbles: {'01','02'}, palette, themeId, themeName, textTone?, bgText? } -> CSS */
 export function buildCss(meta) {
   const pal = meta.palette;
   let tpl = CSS_TEMPLATE;
@@ -53,10 +66,18 @@ export function buildCss(meta) {
     if (!re.test(tpl)) throw new Error(`css template changed: ${re}`);
     tpl = tpl.replace(re, to);
   }
+  const bt = meta.bgText || {};
+  for (const [w, list] of Object.entries(BG_TEXT)) if (bt[w]) for (const [name, fn] of list) {
+    const re = new RegExp(`(^|\\n)${name}\\s*\\{(?:[^{}]|\\{\\{\\w+\\}\\})*\\}`); // 블록 안 {{토큰}} 은 건너뜀
+    if (!re.test(tpl)) throw new Error(`css template changed: ${name}`);
+    tpl = tpl.replace(re, m => fn(m, bt[w]));
+  }
   const tokens = {
     ...pal,
     accentDark: shiftL(pal.accent, -0.1),
     textDark: shiftL(pal.text, -0.1),
+    ...(bt.main && { mainText: bt.main.text, mainMuted: bt.main.muted, mainBg: bt.main.bg }),
+    ...(bt.passcode && { passText: bt.passcode.text }),
     name: meta.themeName,
     id: meta.themeId,
     bubbleSend: bubbleBlock('send', meta.bubbles['01'], meta.bubbles['02'], pal),

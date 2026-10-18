@@ -21,6 +21,7 @@ export const DEFAULTS = Object.freeze({
   peekPos: 'corner',    // 빼꼼 자리: corner(왼쪽 위 모서리) | center(가운데 위). peek 레이아웃·02 빼꼼에만
   textTone: 'palette',  // 글자 색: palette | mono (본문 #383838·보조 #5E5E5E, 선택 배경·보내기 버튼도 무채색)
   keypadTone: 'palette', // 잠금 키패드 배경: palette | char (캐릭터 대표색 = 보낸 말풍선 파스텔, 눌림은 흰 원)
+  hat: false,           // true = 모든 캐릭터·slot 그림 머리 위에 코드로 그린 산타모자 (bubble.santaHat)
 });
 
 // 말풍선 위 캐릭터: 없음 / 올라앉기(앞) / 빼꼼(뒤, 위쪽만 보임) / 엎드려 걸치기(뒤 + 앞발만 앞) / 프사 옆 꼬마(바깥 서기)
@@ -32,9 +33,10 @@ export const OUTLINES = { thin: 0.8, normal: 1.2, thick: 2.2, none: 0 }; // 둥�
 export const RECV_EXTRA = 0.3; // 흰 받은 말풍선은 밝은 배경에서 묻혀서 조금 더 굵게
 export const PIXEL_OUTLINE = { thin: 1, normal: 1, thick: 2, none: 0 }; // 픽셀 말풍선 외곽선 칸 수
 export const OUTLINE_COLORS = ['auto', 'dark'];
-export const DECOS = ['none', 'sparkle', 'heart', 'star', 'note'];
+export const DECOS = ['none', 'sparkle', 'heart', 'star', 'note', 'snowflake', 'holly', 'santa-hat'];
 // pastel = 보낸 쪽은 팔레트 sendFill, 받은 쪽은 색상환 120도 돌린 연한 파스텔 (흰 배경에서 외곽선 없이도 보이게. render.applyFillTone)
-export const FILL_TONES = { palette: null, white: '#FFFFFF', cream: '#FFF6E0', pastel: 'pastel' };
+// xmas = 보낸 쪽 따뜻한 빨강 파스텔, 받은 쪽 연초록 (테두리도 같은 계열). o.colors 에 직접 넣은 키는 건드리지 않는다 (사용자 값 우선)
+export const FILL_TONES = { palette: null, white: '#FFFFFF', cream: '#FFF6E0', pastel: 'pastel', xmas: 'xmas' };
 export const GROUP_CHARS = ['none', 'peek'];
 export const PEEK_POS = ['corner', 'center'];
 export const TEXT_TONES = { palette: null, mono: { text: '#383838', muted: '#5E5E5E' } };
@@ -50,12 +52,16 @@ export const PRESETS = {
 };
 
 // ---------- 배경 커스텀 (opts.background) ----------
-// 무늬 9종. cubes = 3색 둥근 사각 (accent 색상환 3등분, patternColors 로 직접). 기본 투명도 = 무늬별 값 (프리셋 그림 그대로)
+// 무늬 11종. cubes = 3색 둥근 사각 (accent 색상환 3등분, patternColors 로 직접). 기본 투명도 = 무늬별 값 (프리셋 그림 그대로)
 // wobble-grid = 손그림처럼 살짝 삐뚤한 격자, sprinkle-hearts = 드문드문 불규칙 작은 하트 4색. 둘 다 시드 고정 난수 (같은 입력 = 같은 그림)
-export const PATTERNS = ['dots', 'check', 'grid', 'stars', 'hearts', 'cubes', 'wobble-grid', 'sprinkle-hearts', 'none'];
-export const PATTERN_ALPHA = { dots: 0.24, check: 0.3, grid: 0.1, stars: 0.28, hearts: 0.22, cubes: 0.16, 'wobble-grid': 0.2, 'sprinkle-hearts': 0.9, none: 0 };
-// 헤이즈 = 무늬 아래 까는 흐린 파스텔 무지개 + 구름 (화면마다 none | rainbow). 사진이 있으면 사진이 우선
-export const HAZES = ['none', 'rainbow'];
+// snow = 크고 작은 눈송이·눈점 (시드 고정), xmas-lights = 무늬 자리 맨 위에 늘어진 꼬마전구 줄 (빨강·초록·금색)
+export const PATTERNS = ['dots', 'check', 'grid', 'stars', 'hearts', 'cubes', 'wobble-grid', 'sprinkle-hearts', 'snow', 'xmas-lights', 'none'];
+export const PATTERN_ALPHA = { dots: 0.24, check: 0.3, grid: 0.1, stars: 0.28, hearts: 0.22, cubes: 0.16, 'wobble-grid': 0.2, 'sprinkle-hearts': 0.9, snow: 0.85, 'xmas-lights': 1, none: 0 };
+// 헤이즈 = 무늬 아래 까는 그라데이션 바탕 (사진이 있으면 사진이 우선). rainbow = 흐린 파스텔 무지개 + 구름,
+// snow-night = 깊은 남색 밤하늘 + 아래 눈 언덕 (어두워서 그 화면 글자는 밝게, render.bgText), xmas-glow = 크림 바탕 + 흐린 빨강·초록·금색 보케.
+// 채팅방은 밤하늘 불가: 채팅방 이름·시간 글자 색은 테마 CSS 로 못 바꿔서 (카카오 기본 진한 글자) 밝은 헤이즈만
+export const HAZES = ['none', 'rainbow', 'snow-night', 'xmas-glow'];
+export const HAZE_AREAS = { main: HAZES, chat: ['none', 'rainbow', 'xmas-glow'], passcode: HAZES };
 export const PATTERN_SIZES = { s: 0.75, m: 1, l: 1.4 };
 export const CORNERS = ['br', 'bl', 'tr', 'tl', 'none'];
 export const CORNER_SIZES = { s: 0.7, m: 1, l: 1.3 };
@@ -103,7 +109,7 @@ export function resolveBackground(preset = 'cream-dots', bg = null) {
   if (!CORNER_SIZES[c.size]) throw new Error(`unknown corner size ${c.size}`);
   const corner = { main: c.main, chat: c.chat, size: c.size, opacity: c.opacity == null ? null : range(c.opacity, 0.15, 1, 'corner opacity') };
   const hz = { main: 'none', chat: 'none', passcode: 'none', ...(b.haze || {}) };
-  for (const w of ['main', 'chat', 'passcode']) if (!HAZES.includes(hz[w])) throw new Error(`unknown haze.${w} ${hz[w]}`);
+  for (const w of ['main', 'chat', 'passcode']) if (!HAZE_AREAS[w].includes(hz[w])) throw new Error(`unknown haze.${w} ${hz[w]}`);
   return { pattern, patternSize, patternOpacity, patternColors: pc && [...pc], patternArea: { main: patternArea.main, chat: patternArea.chat, passcode: patternArea.passcode }, color, photo, corner,
     haze: { main: hz.main, chat: hz.chat, passcode: hz.passcode } };
 }
@@ -144,6 +150,17 @@ export const TEMPLATES = [
   { id: 'sticky-perch', name: '포스트잇 올라앉기', desc: '네모난 포스트잇 모서리에 폭 올라앉았어요. 손그림 격자, 글자는 차분한 먹색.',
     opts: { layout: 'perch', charSize: 'm', bubbleShape: 'note', outline: 'none', outlineColor: 'auto', deco: 'none', fillTone: 'pastel', textTone: 'mono', keypadTone: 'char', pixelChar: false, pixelBubble: false },
     bg: { ...STICKY_BG, pattern: 'wobble-grid' } },
+  // 크리스마스 계열: 색은 fillTone 'xmas' (o.colors 가 이김), 산타모자는 hat
+  { id: 'xmas-night', name: '눈 오는 밤', desc: '깊은 밤하늘에 눈이 펑펑, 산타모자 쓰고 말풍선에 올라앉았어요. 밤하늘 화면 글자는 밝게.',
+    opts: { layout: 'perch', charSize: 'm', bubbleShape: 'round', outline: 'normal', outlineColor: 'dark', deco: 'star', fillTone: 'xmas', hat: true, pixelChar: false, pixelBubble: false },
+    bg: { pattern: 'snow', patternArea: { main: 'full', chat: 'top', passcode: 'full' }, haze: { main: 'snow-night', chat: 'none', passcode: 'snow-night' } } },
+  { id: 'xmas-sticky', name: '포스트잇 크리스마스', desc: '포스트잇 뒤에서 산타모자 쓰고 가운데로 빼꼼, 이어 보낸 말풍선에도 빼꼼. 꼬마전구와 따뜻한 빛.',
+    opts: { layout: 'peek', peekPos: 'center', groupChar: 'peek', charSize: 'm', bubbleShape: 'note', outline: 'none', outlineColor: 'auto', deco: 'none', fillTone: 'xmas', textTone: 'mono', keypadTone: 'char', hat: true, pixelChar: false, pixelBubble: false },
+    // 꼬마전구는 잠금 화면 위쪽만: 친구탭·채팅방은 무늬 자리 맨 위가 첫 줄(내 프로필·첫 말풍선)이라 글자를 가린다
+    bg: { pattern: 'xmas-lights', patternArea: { main: 'none', chat: 'none', passcode: 'full' }, haze: { main: 'xmas-glow', chat: 'xmas-glow', passcode: 'xmas-glow' } } },
+  { id: 'holly-card', name: '호랑가시 카드', desc: '크림색 카드에 호랑가시 잎과 빨간 열매 하나.',
+    opts: { layout: 'perch', charSize: 'm', bubbleShape: 'soft', outline: 'normal', outlineColor: 'dark', deco: 'holly', fillTone: 'cream', pixelChar: false, pixelBubble: false },
+    bg: { pattern: 'none', haze: { main: 'xmas-glow', chat: 'none', passcode: 'xmas-glow' } } },
 ].map(t => ({ ...t, thumb: `templates/${t.id}.png` })); // 썸네일 = tests/gen-thumbs.mjs 가 데모 캐릭터로 만든 그림
 
 export const PIXEL_CELL = 2;       // 픽셀 말풍선 1칸 = 2pt
@@ -363,6 +380,11 @@ export const BG = {
   headerBand: 0.7,
   headerFade: 60,          // 사진 위 헤더 띠 아래로 0.7 -> 0 페이드 (이음매 없게)
   topBand: [60, 420],      // patternArea 'top' = 이 띠만 (채팅방 위쪽만 살짝)
+  safeTop: 150,            // 상태 막대·다이내믹 아일랜드 아래 (꼬마전구 줄은 이 아래에서 시작)
+  nightText: {             // 밤하늘 위 눈을 빼는 글자 자리: 친구탭 = 왼쪽 이름·상태메시지 칸, 잠금 = 제목·비밀번호 점 줄
+    main: [{ x: 0, y: 0, w: 700, h: 2250 }],
+    passcode: [{ x: 0, y: 360, w: 1200, h: 320 }],
+  },
   main: { w: 1125, h: 2250, char: { x: 775, y: 1720, w: 320, h: 320, alpha: 0.42 }, mx: 30, my: 210 },
   chat: { w: 1125, h: 2250, char: { x: 20, y: 1700, w: 400, h: 340, alpha: 0.38 }, mx: 20, my: 210 },
   passcode: { w: 1200, h: 1200, patternEnd: 700, gradStart: 900, char: { x: 390, y: 700, w: 420, h: 400 } },

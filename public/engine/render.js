@@ -1,10 +1,10 @@
 // 캔버스 렌더링과 테마 빌드. 브라우저 전용 (캔버스는 makeCanvas 한 곳에서만 만든다).
 import { IMAGES } from './spec.js';
 import { DEFAULTS, PRESETS, LAYOUTS, GRIDS, BG, PERCH_CROP, PEEK_CROP, CHAR_SIZES, SHAPES, OUTLINES, OUTLINE_COLORS, DECOS, FILL_TONES, GROUP_CHARS, PEEK_POS, TEXT_TONES, KEYPAD_TONES, PATTERN_SIZES, bubbleSpec, charBox, resolveBackground, patternLayers, cornerBox } from './presets.js';
-import { derive, shiftL, oklch, rgbToOklch, rgb, lumRgb, contrast, mulberry32 } from './palette.js';
+import { derive, shiftL, oklch, rgbToOklch, rgb, lumRgb, contrast, mulberry32, textOn } from './palette.js';
 import { pixelize, fitSprite, binarizeScale, centerCropX } from './pixelize.js';
 import { crop, cropToAlpha } from './keying.js';
-import { bubbleImage, layerChar } from './bubble.js';
+import { bubbleImage, layerChar, santaHat, XMAS } from './bubble.js';
 import { buildCss, themeId, themeName } from './css.js';
 import { packTheme } from './pack.js';
 
@@ -82,9 +82,10 @@ function variant(ch, key) {
   else if (key === 'perch') {
     const src = img.width / img.height > 40 / 26 ? centerCropX(img, Math.max(PERCH_CROP, (40 / 26) * img.height / img.width)) : img;
     v = pixel ? sp(src) : { img: src };
-  } else if (key === 'peek') {
-    if (pixel) { const f = variant(ch, 'full').sprite; v = { sprite: crop(f, 0, 0, f.width, Math.max(1, Math.round(f.height * PEEK_CROP))) }; }
-    else v = { img: crop(img, 0, 0, img.width, Math.max(1, Math.round(img.height * PEEK_CROP))) };
+  } else if (key === 'peek') { // 산타모자를 씌운 그림은 모자 줄(hatTop) + 원래 그림의 65% (얼굴이 안 잘리게)
+    const r = ((img.hatTop || 0) + (img.height - (img.hatTop || 0)) * PEEK_CROP) / img.height;
+    if (pixel) { const f = variant(ch, 'full').sprite; v = { sprite: crop(f, 0, 0, f.width, Math.max(1, Math.round(f.height * r))) }; }
+    else v = { img: crop(img, 0, 0, img.width, Math.max(1, Math.round(img.height * r))) };
   } else throw new Error(`unknown variant ${key}`);
   return (ch.variants[key] = v);
 }
@@ -185,8 +186,9 @@ function chrome(wPt, hPt, k, pixel, draw) {
 
 // 배경 무늬 (px 좌표). layers = patternLayers(bg) [[무늬, 투명도]], f = 크기 배율. skip = 구석 그림 자리 {x,y,w,h}
 // (흩뿌린 무늬만 비움. 체크·격자는 끊기면 어색해서 그대로). m·기본 투명도 = 예전 프리셋 그림과 픽셀까지 같다.
-// pc = background.patternColors (dots·cubes·hearts 가 돌려 씀, null = 팔레트)
-function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null) {
+// pc = background.patternColors (dots·cubes·hearts 가 돌려 씀, null = 팔레트). dark = 밤하늘 헤이즈 위 (눈 = 흰색)
+// avoid = 눈을 그리지 않을 글자 자리 [{x,y,w,h}] (밤하늘 위 밝은 글자가 흰 눈에 묻히지 않게)
+function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null, dark = false, avoid = []) {
   if (!layers.length) return;
   ctx.save();
   ctx.beginPath();
@@ -219,6 +221,32 @@ function pattern(ctx, layers, f, pal, x0, y0, x1, y1, skip, pc = null) {
         ctx.save(); ctx.translate(x + cell * (0.15 + 0.7 * r[1]), y + cell * (0.15 + 0.7 * r[2])); ctx.rotate((r[4] - 0.5) * 0.7);
         ctx.fillStyle = cols[i++ % cols.length]; heart(ctx, 0, 0, (12 + 7 * r[3]) * f);
         ctx.restore();
+      }
+    } else if (kind === 'snow') { // 크고 작은 눈: 150px 칸마다 눈점 2개(반경 3~8) + 30% 확률로 큰 눈송이(반경 14~26). 시드 고정, 칸마다 10개씩 뽑는다
+      // 무늬 자리 경계에 걸치는 눈(반쪽 눈송이)과 avoid 글자 자리에 닿는 눈은 통째로 뺀다
+      const cell = 150 * f, rand = mulberry32(41);
+      const ok = (x, y, r) => x - r >= x0 && x + r <= x1 && y - r >= y0 && y + r <= y1 && avoid.every(a => x + r < a.x || x - r > a.x + a.w || y + r < a.y || y - r > a.y + a.h);
+      ctx.fillStyle = ctx.strokeStyle = (pc && pc[0]) || (dark ? '#FFFFFF' : oklch(0.82, 0.05, 240));
+      ctx.lineWidth = 3 * f; ctx.lineCap = 'round';
+      for (let y = y0; y < y1; y += cell) for (let x = 0; x < x1; x += cell) {
+        const r = Array.from({ length: 10 }, rand);
+        for (const j of [0, 3]) { const cx = x + cell * r[j], cy = y + cell * r[j + 1], rad = (3 + 5 * r[j + 2]) * f; if (ok(cx, cy, rad)) { ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill(); } }
+        if (r[6] < 0.3 && ok(x + cell * r[8], y + cell * r[9], (14 + 12 * r[7]) * f + 2 * f)) flake(ctx, x + cell * r[8], y + cell * r[9], (14 + 12 * r[7]) * f, r[7]);
+      }
+    } else if (kind === 'xmas-lights') { // 무늬 자리 맨 위에 늘어진 꼬마전구 줄: 375px 마다 70px 처지는 줄, 46px 간격 전구 + 흐린 빛 (빨강·초록·금색)
+      // 상태 막대·다이내믹 아일랜드(위 BG.safeTop) 아래에서 시작 (잠금 배경처럼 무늬 자리가 0 부터일 때 시계에 안 겹치게)
+      const span = 375 * f, sag = 70 * f, top = Math.max(y0, BG.safeTop) + 24 * f, cols = pc || [XMAS.red, XMAS.green, '#E8B33A'];
+      const yAt = x => { const t = (((x - x0) % span) + span) % span / span; return top + sag * 4 * t * (1 - t); };
+      ctx.strokeStyle = '#3E4A3A'; ctx.lineWidth = 3 * f; ctx.beginPath(); ctx.moveTo(x0, yAt(x0));
+      for (let x = x0 + 5; x <= x1; x += 5) ctx.lineTo(x, yAt(x));
+      ctx.stroke();
+      for (let i = 0, x = x0 + 23 * f; x < x1; x += 46 * f, i++) {
+        const y = yAt(x), c = cols[i % cols.length], g = ctx.createRadialGradient(x, y + 20 * f, 0, x, y + 20 * f, 34 * f);
+        g.addColorStop(0, c + '66'); g.addColorStop(1, c + '00');
+        ctx.fillStyle = g; ctx.fillRect(x - 34 * f, y - 14 * f, 68 * f, 68 * f);
+        ctx.fillStyle = '#3E4A3A'; ctx.fillRect(x - 4 * f, y, 8 * f, 8 * f);
+        ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x, y + 20 * f, 8 * f, 12 * f, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#FFFFFF99'; ctx.beginPath(); ctx.ellipse(x - 3 * f, y + 15 * f, 2.2 * f, 4 * f, 0, 0, Math.PI * 2); ctx.fill();
       }
     } else if (kind === 'wobble-grid') { // 손그림 격자: 선마다 이음점을 조금씩 흔들고 곡선으로 이음 (시드 고정)
       const step = 96 * f, seg = 90 * f, j = 2.6 * f, rand = mulberry32(17), d = () => (rand() - 0.5) * 2 * j;
@@ -258,6 +286,16 @@ function heart(ctx, x, y, s) {
   ctx.bezierCurveTo(x + s * 0.6, y - s * 1.2, x + s * 1.6, y - s * 0.1, x, y + s * 0.9);
   ctx.closePath(); ctx.fill();
 }
+// 눈송이 (가운데 x,y, 반경 r, t = 0..1 회전): 6갈래 + 갈래마다 V 가지. strokeStyle·lineWidth 는 부르는 쪽
+function flake(ctx, x, y, r, t) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = t + i * Math.PI / 3, c = Math.cos(a), s = Math.sin(a), bx = x + c * r * 0.6, by = y + s * r * 0.6;
+    ctx.moveTo(x, y); ctx.lineTo(x + c * r, y + s * r);
+    for (const d of [-0.6, 0.6]) { ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(a + d) * r * 0.32, by + Math.sin(a + d) * r * 0.32); }
+  }
+  ctx.stroke();
+}
 // 점들을 지나는 부드러운 선 (가운데점까지 2차 곡선). path 만 추가, stroke 는 부르는 쪽
 function wobble(ctx, p) {
   ctx.moveTo(...p[0]);
@@ -269,12 +307,14 @@ function wobble(ctx, p) {
  * 흐린 파스텔 무지개 + 구름 헤이즈 (W x H 전체). 큰 원형 그라데이션을 고정 자리에 겹쳐 강한 블러처럼 보이게, 그 위에 흐린 무지개 아치.
  * ctx.filter 는 iOS 사파리 캔버스에서 안 돼서 그라데이션만 쓴다 (결정적). 색은 저채도 고정 무지개 (팔레트와 무관).
  */
-function haze(ctx, W, H) {
+function haze(ctx, W, H, kind = 'rainbow') {
   const R = Math.max(W, H), blob = (fx, fy, fr, color, a) => {
     const x = fx * W, y = fy * H, g = ctx.createRadialGradient(x, y, 0, x, y, fr * R);
     g.addColorStop(0, color + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, color + '00');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   };
+  if (kind === 'snow-night') return snowNight(ctx, W, H, blob);
+  if (kind === 'xmas-glow') return xmasGlow(ctx, W, H, blob);
   ctx.save();
   for (const [fx, fy, h] of [[0.1, 0.1, 25], [0.9, 0.28, 85], [0.15, 0.5, 150], [0.85, 0.7, 230], [0.3, 0.92, 300]]) blob(fx, fy, 0.5, oklch(0.9, 0.06, h), 0.6);
   // 무지개 아치: 오른쪽 밖에 중심을 둔 원형 그라데이션 고리 (띠 사이를 겹쳐 흐리게). 화면 밖은 잘려 아치로 보인다
@@ -283,6 +323,36 @@ function haze(ctx, W, H) {
   [[0.52, 230, 0], [0.62, 230, 0.55], [0.72, 85, 0.6], [0.8, 150, 0.55], [0.89, 20, 0.5], [1, 20, 0]].forEach(([at, h, a]) => g.addColorStop(at, band(h, a)));
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   for (const [fx, fy, fr] of [[0.55, 0.22, 0.28], [0.2, 0.68, 0.24], [0.8, 0.95, 0.26], [0.35, 0.8, 0.22]]) blob(fx, fy, fr, '#FFFFFF', 0.8); // 구름 (아치 발치를 덮는다)
+  ctx.restore();
+}
+
+// 크리스마스 헤이즈 색. HAZE_TEXT_BG = 그 바탕의 대표 색 (글자 대비 계산용, palette.textOn). 밤하늘 달빛은 위 색에 흰색 18% 섞은 값
+const NIGHT = { top: oklch(0.24, 0.06, 268), bottom: oklch(0.36, 0.07, 255), hillBack: oklch(0.44, 0.04, 250), hillFront: oklch(0.5, 0.035, 245) };
+const GLOW = { base: '#FFF4E4', red: oklch(0.86, 0.07, 22), green: oklch(0.88, 0.06, 150), gold: oklch(0.92, 0.07, 85) };
+const mix = (a, b, t) => { const A = rgb(a), B = rgb(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('').toUpperCase(); };
+export const HAZE_TEXT_BG = { 'snow-night': [...Object.values(NIGHT), mix(NIGHT.top, '#FFFFFF', 0.18)], 'xmas-glow': Object.values(GLOW) };
+
+/** 눈 오는 밤: 남색 그라데이션 + 오른쪽 위 달빛 + 아래 눈 언덕 두 겹 (뒤 언덕 왼쪽, 앞 언덕 오른쪽) */
+function snowNight(ctx, W, H, blob) {
+  ctx.save();
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, NIGHT.top); g.addColorStop(1, NIGHT.bottom);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  blob(0.82, 0.1, 0.35, '#FFFFFF', 0.18);
+  for (const [fx, fy, rx, ry, c] of [[0.2, 1.03, 0.8, 0.13, NIGHT.hillBack], [0.9, 1.05, 0.85, 0.11, NIGHT.hillFront]]) {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(fx * W, fy * H, rx * W, ry * H, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** 크리스마스 빛: 크림을 75% 덮고 흐린 빨강·초록·금색 큰 원 + 작은 보케 14개 (시드 53) */
+function xmasGlow(ctx, W, H, blob) {
+  ctx.save();
+  ctx.globalAlpha = 0.75; ctx.fillStyle = GLOW.base; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+  const cols = [GLOW.red, GLOW.green, GLOW.gold];
+  [[0.12, 0.12, 0], [0.88, 0.32, 1], [0.18, 0.62, 2], [0.85, 0.82, 0], [0.4, 0.97, 1]].forEach(([fx, fy, c]) => blob(fx, fy, 0.42, cols[c], 0.5));
+  const rand = mulberry32(53), k = W / 1125;
+  for (let i = 0; i < 14; i++) { const fx = rand(), fy = rand(), r = (30 + 60 * rand()) * k / Math.max(W, H); blob(fx, fy, r, cols[i % 3], 0.45); }
   ctx.restore();
 }
 
@@ -351,6 +421,7 @@ export function normalizeOptions(opts = {}) {
   if (!GRIDS.includes(Number(o.grid))) throw new Error(`grid must be 32|48|64`);
   o.grid = Number(o.grid);
   o.slotsArePixel = !!o.slotsArePixel;
+  o.hat = !!o.hat;
   // 서기: 받은 말풍선 친구 캐릭터가 채팅방 왼쪽 아래에 서므로 채팅방 구석 그림 기본값은 오른쪽 아래 (안 겹치게)
   const ob = o.background || {};
   o.background = resolveBackground(o.preset, o.layout === 'stand' && !(ob.corner && ob.corner.chat) ? { ...ob, corner: { ...ob.corner, chat: 'br' } } : o.background);
@@ -362,9 +433,15 @@ export function normalizeOptions(opts = {}) {
  * 면 성향 (템플릿): white/cream 이면 보낸·받은 말풍선 면을 그 색으로 (사용자 색보다 우선).
  * pastel = 보낸 쪽은 그대로, 받은 쪽은 보낸 파스텔에서 색상환 120도 돌린 연한 파스텔 (외곽선 없는 포스트잇도 흰 배경에서 보이게)
  */
-export function applyFillTone(pal, tone) {
+export function applyFillTone(pal, tone, keep = []) {
   const f = FILL_TONES[tone];
   if (!f) return pal;
+  if (f === 'xmas') { // 보낸 = 따뜻한 빨강 파스텔, 받은 = 연초록. keep = 사용자가 직접 넣은 색 키 (그 키는 사용자 값)
+    const send = oklch(0.87, 0.07, 22), recv = oklch(0.95, 0.045, 150);
+    const x = { sendFill: send, sendSel: shiftL(send, -0.06), sendLine: oklch(0.64, 0.14, 22), recvFill: recv, recvSel: shiftL(recv, -0.06), recvLine: oklch(0.74, 0.08, 150) };
+    for (const k of keep) delete x[k];
+    return { ...pal, ...x };
+  }
   if (f === 'pastel') {
     const [, C, H] = rgbToOklch(rgb(pal.sendFill)), recv = oklch(0.93, Math.min(Math.max(C, 0.04), 0.05), (H + 120) % 360);
     return { ...pal, recvFill: recv, recvSel: shiftL(recv, -0.06) };
@@ -427,20 +504,29 @@ export async function buildTheme(charA, charB, opts, assets) {
   const o = normalizeOptions(opts);
   const as = checkAssets(assets), sl = as.slots, bgo = o.background;
   const base = o.colors ? { ...derive(charA), ...o.colors } : derive(charA);
-  if (o.keypadTone === 'char') base.keypad = base.sendFill; // 키패드 = 캐릭터 대표색 (면 성향 적용 전 파스텔)
-  const pal = applyTextTone(applyFillTone(base, o.fillTone), o.textTone);
+  // 키패드 = 캐릭터 대표색 (면 성향 적용 전 파스텔). charKeypad = 내부용: buildCouple 이 xmas 면을 미리 칠하기 전 값
+  if (o.keypadTone === 'char') base.keypad = o.charKeypad || base.sendFill;
+  const pal = applyTextTone(applyFillTone(base, o.fillTone, o.colors ? Object.keys(o.colors) : []), o.textTone);
   pal.profileBg = pal.profileBg || shiftL(pal.bg, -0.035);
   const bgColor = bgo.color || pal.bg;
   // 배경 결과 보고 (UI 안내용): 실제 dim (자동 보정 후), 경고 'text-on-bg' = 고른 배경색 위 글자 대비 4.5 미만
   const bgMeta = { dim: {}, warnings: [] };
   if (bgo.color && contrast(bgColor, pal.text) < 4.5) bgMeta.warnings.push('text-on-bg');
-  const A = makeChar(charA, o.pixelChar, o.grid);
-  const B = charB ? makeChar(charB, o.pixelChar, o.grid) : A;
+  // 헤이즈 위 글자 (친구탭·잠금, 사진 없을 때): 크리스마스 헤이즈면 그 바탕과 대비 맞춘 글자색 (밤하늘 = 밝게). css.js 가 그 화면 줄만 바꾼다
+  const bgText = {};
+  for (const [w, photo] of [['main', as.bgMain], ['passcode', as.bgPasscode]]) {
+    const hz = HAZE_TEXT_BG[bgo.haze[w]];
+    if (hz && !photo) bgText[w] = { ...textOn(hz, pal), bg: bgo.haze[w] === 'snow-night' ? NIGHT.bottom : null };
+  }
+  // 산타모자 (hat): 캐릭터·slot 그림 전부 머리 위에. 이미 도트인 slot 그림은 알파 0/255 로
+  const hat = (im, binary = false) => (o.hat ? santaHat(im, { binary }) : im);
+  const A = makeChar(hat(charA), o.pixelChar, o.grid);
+  const B = charB ? makeChar(hat(charB), o.pixelChar, o.grid) : A;
   // slot 그림: 알파 bbox 로 자른 뒤 캐릭터와 같은 경로 (pixelChar 면 pixelize, slotsArePixel 이면 그대로 정수배)
   const arts = [];
   const art = im => {
     if (!im) return null;
-    const ch = makeChar(cropToAlpha(im), o.pixelChar || o.slotsArePixel, o.grid, o.slotsArePixel);
+    const ch = makeChar(hat(cropToAlpha(im), o.slotsArePixel), o.pixelChar || o.slotsArePixel, o.grid, o.slotsArePixel);
     arts.push(ch);
     return ch;
   };
@@ -548,15 +634,15 @@ export async function buildTheme(charA, charB, opts, assets) {
       const spec = BG[which], box = cornerBox(which, bgo.corner);
       const c = makeCanvas(spec.w, spec.h), ctx = ctxOf(c, o.pixelChar);
       ctx.fillStyle = bgColor; ctx.fillRect(0, 0, spec.w, spec.h);
-      if (!photo && bgo.haze[which] === 'rainbow') haze(ctx, spec.w, spec.h);
+      if (!photo && bgo.haze[which] !== 'none') haze(ctx, spec.w, spec.h, bgo.haze[which]);
       if (photo) {
         bgMeta.dim[which] = drawPhoto(ctx, photo, spec.w, spec.h, bgo.photo[which], bgColor, pal, BG.header, spec.h);
         const a = Math.round(BG.headerBand * 255).toString(16).padStart(2, '0'), g = ctx.createLinearGradient(0, BG.header, 0, BG.header + BG.headerFade);
         g.addColorStop(0, bgColor + a); g.addColorStop(1, bgColor + '00');
         ctx.save(); ctx.globalAlpha = BG.headerBand; ctx.fillStyle = bgColor; ctx.fillRect(0, 0, spec.w, BG.header); ctx.restore();
         ctx.fillStyle = g; ctx.fillRect(0, BG.header, spec.w, BG.headerFade);
-      } else if (bgo.patternArea[which] === 'full') pattern(ctx, layers, pf, pal, 0, BG.header, spec.w, spec.h, box, bgo.patternColors);
-      else if (bgo.patternArea[which] === 'top') pattern(ctx, layers, pf, pal, 0, BG.topBand[0], spec.w, BG.topBand[1], null, bgo.patternColors);
+      } else if (bgo.patternArea[which] === 'full') pattern(ctx, layers, pf, pal, 0, BG.header, spec.w, spec.h, box, bgo.patternColors, bgo.haze[which] === 'snow-night', bgo.haze[which] === 'snow-night' ? BG.nightText[which] : []);
+      else if (bgo.patternArea[which] === 'top') pattern(ctx, layers, pf, pal, 0, BG.topBand[0], spec.w, BG.topBand[1], null, bgo.patternColors, bgo.haze[which] === 'snow-night', bgo.haze[which] === 'snow-night' ? BG.nightText[which] : []);
       if (box) {
         drawChar(ctx, art(slot) || A, 'full', box, 1, { align: box.align, alpha: box.alpha });
       }
@@ -565,9 +651,9 @@ export async function buildTheme(charA, charB, opts, assets) {
     {
       const P = BG.passcode, c = makeCanvas(P.w, P.h), ctx = ctxOf(c, o.pixelChar);
       ctx.fillStyle = bgColor; ctx.fillRect(0, 0, P.w, P.h);
-      if (!as.bgPasscode && bgo.haze.passcode === 'rainbow') haze(ctx, P.w, P.h);
+      if (!as.bgPasscode && bgo.haze.passcode !== 'none') haze(ctx, P.w, P.h, bgo.haze.passcode);
       if (as.bgPasscode) bgMeta.dim.passcode = drawPhoto(ctx, as.bgPasscode, P.w, P.h, bgo.photo.passcode, bgColor, pal, 0, P.patternEnd);
-      else if (bgo.patternArea.passcode === 'full') pattern(ctx, layers, pf, pal, 0, 0, P.w, P.patternEnd, null, bgo.patternColors);
+      else if (bgo.patternArea.passcode === 'full') pattern(ctx, layers, pf, pal, 0, 0, P.w, P.patternEnd, null, bgo.patternColors, bgo.haze.passcode === 'snow-night', bgo.haze.passcode === 'snow-night' ? BG.nightText.passcode : []);
       // 맨 아래 300px 는 키패드 색으로 (이음매 없음, 사진 위에서도)
       const g = ctx.createLinearGradient(0, P.gradStart, 0, P.h);
       g.addColorStop(0, pal.keypad + '00'); g.addColorStop(1, pal.keypad);
@@ -620,6 +706,7 @@ export async function buildTheme(charA, charB, opts, assets) {
     palette: pal,
     textTone: o.textTone,
     background: bgMeta,
+    bgText,
     themeId: themeId(o.id),
     themeName: themeName(o.name),
   };
@@ -641,7 +728,10 @@ const fileBase = name => (String(name || '').replace(/[\\/:*?"<>|'\n\r\u2014]/g,
 export async function buildCouple(charA, charB, opts, assets) {
   const o = normalizeOptions(opts);
   const as = checkAssets(assets);
-  const colors = o.colors ? { ...derive(charA), ...o.colors } : derive(charA);
+  // 색은 두 폰 같게: A 에서 파생 (+ 크리스마스 면 성향을 여기서 미리, 직접 넣은 색이 이김)
+  const d = derive(charA), colors = { ...(o.fillTone === 'xmas' ? applyFillTone(d, 'xmas') : d), ...(o.colors || {}) };
+  // keypadTone char: 단일 빌드처럼 xmas 면 전 sendFill (미리 칠한 빨강 파스텔이 키패드로 가지 않게)
+  if (o.keypadTone === 'char') o.charKeypad = { ...d, ...(o.colors || {}) }.sendFill;
   const base = fileBase(o.name);
   const a = await buildTheme(charA, charB, { ...o, colors }, assets);
   const blobA = await packTheme(a.files);

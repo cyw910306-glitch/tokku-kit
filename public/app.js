@@ -11,7 +11,7 @@ const PHOTO_SIDE = 2250;   // 배경 사진 (1125x2250 화면)
 const TOL0 = 32, TOL_MAX = 40; // 다듬기 세기 시작값·최대 (40 넘으면 배경과 비슷한 털이 깎이기 시작)
 const EMPTY_MSG = '캐릭터가 거의 다 지워졌어요. 2단계 다듬기에서 세기를 왼쪽으로 옮기거나 다른 사진을 넣어 주세요.';
 const FALLBACK_DEFAULTS = { name: '나의 테마', id: '', preset: 'cream-dots', layout: 'perch', charSize: 'm', bubbleShape: 'round', outline: 'normal', outlineColor: 'auto',
-  deco: 'none', fillTone: 'palette', pixelChar: false, grid: 48, pixelBubble: false, colors: null, groupChar: 'none', peekPos: 'corner', textTone: 'palette', keypadTone: 'palette' };
+  deco: 'none', fillTone: 'palette', pixelChar: false, grid: 48, pixelBubble: false, colors: null, groupChar: 'none', peekPos: 'corner', textTone: 'palette', keypadTone: 'palette', hat: false };
 // 꾸미기 버튼과 프로젝트 불러오기 검증이 같이 쓰는 표 (값, 화면 글자)
 const CHOICES = {
   layout: [['none', '없음'], ['perch', '올라앉기'], ['peek', '빼꼼'], ['hang', '엎드려 걸치기'], ['stand', '프사 옆 꼬마']],
@@ -19,8 +19,8 @@ const CHOICES = {
   bubbleShape: [['round', '동글'], ['soft', '살짝 둥글'], ['square', '네모'], ['note', '포스트잇']],
   outline: [['thin', '얇게'], ['normal', '보통'], ['thick', '굵게'], ['none', '없음']],
   outlineColor: [['auto', '말풍선 색'], ['dark', '진하게']],
-  deco: [['none', '없음'], ['sparkle', '반짝 ✦'], ['heart', '하트 ♥'], ['star', '별 ★'], ['note', '음표 ♪']],
-  fillTone: [['palette', '사진 색'], ['white', '하양'], ['cream', '크림'], ['pastel', '파스텔 두 색']],
+  deco: [['none', '없음'], ['sparkle', '반짝 ✦'], ['heart', '하트 ♥'], ['star', '별 ★'], ['note', '음표 ♪'], ['snowflake', '눈송이 ❄'], ['holly', '호랑가시'], ['santa-hat', '산타모자']],
+  fillTone: [['palette', '사진 색'], ['white', '하양'], ['cream', '크림'], ['pastel', '파스텔 두 색'], ['xmas', '크리스마스']],
   groupChar: [['none', '없음'], ['peek', '작게 빼꼼']],
   peekPos: [['corner', '모서리'], ['center', '가운데 위']],
   textTone: [['palette', '사진 색'], ['mono', '무채색']],
@@ -29,7 +29,7 @@ const CHOICES = {
   preset: [['cream-dots', '크림 도트'], ['pastel-check', '파스텔 체크'], ['retro-game', '레트로 게임'], ['plain-minimal', '무지 미니멀']],
 };
 // 템플릿이 정하는 '모양' 키. 템플릿에 없는 키는 기본값으로 되돌려 같은 템플릿이 늘 같은 모양이 되게 한다 (무늬·격자·색·이름은 유지)
-const LOOK_KEYS = ['layout', 'charSize', 'bubbleShape', 'outline', 'outlineColor', 'deco', 'fillTone', 'pixelChar', 'pixelBubble', 'groupChar', 'peekPos', 'textTone', 'keypadTone'];
+const LOOK_KEYS = ['layout', 'charSize', 'bubbleShape', 'outline', 'outlineColor', 'deco', 'fillTone', 'pixelChar', 'pixelBubble', 'groupChar', 'peekPos', 'textTone', 'keypadTone', 'hat'];
 const SWATCHES = [['bg', '배경'], ['tabBg', '탭 바'], ['sendFill', '보낸 말풍선'], ['accent', '포인트'], ['text', '글자']];
 // '색 더 보기' (팔레트 나머지 전부 + 프로필 바탕): 남이 만든 테마 색을 그대로 옮길 수 있게
 const SWATCHES_MORE = [['sendLine', '보낸 테두리'], ['sendSel', '보낸 누름'], ['recvFill', '받은 말풍선'], ['recvLine', '받은 테두리'], ['recvSel', '받은 누름'],
@@ -37,19 +37,22 @@ const SWATCHES_MORE = [['sendLine', '보낸 테두리'], ['sendSel', '보낸 누
 
 // ---------- 배경 (opts.background) ----------
 const PATTERNS = [['dots', '도트'], ['check', '체크'], ['grid', '격자'], ['stars', '별'], ['grid+stars', '레트로'], ['hearts', '하트'], ['cubes', '큐브'],
-  ['wobble-grid', '손그림 격자'], ['sprinkle-hearts', '콕콕 하트'], ['wobble-grid+sprinkle-hearts', '격자+하트'], ['none', '없음']];
+  ['wobble-grid', '손그림 격자'], ['sprinkle-hearts', '콕콕 하트'], ['wobble-grid+sprinkle-hearts', '격자+하트'],
+  ['snow', '눈송이'], ['xmas-lights', '꼬마전구'], ['snow+xmas-lights', '눈+전구'], ['none', '없음']];
 const PRESET_PATTERN = { 'cream-dots': 'dots', 'pastel-check': 'check', 'retro-game': 'grid+stars', 'plain-minimal': 'none' };
 // 무늬를 고르면 preset 도 가장 가까운 값으로 맞춘다 (배경 옵션을 모르는 엔진에서도 비슷하게 보이게)
 const PATTERN_PRESET = { dots: 'cream-dots', check: 'pastel-check', grid: 'retro-game', stars: 'retro-game', 'grid+stars': 'retro-game', hearts: 'cream-dots', cubes: 'cream-dots', none: 'plain-minimal',
-  'wobble-grid': 'pastel-check', 'sprinkle-hearts': 'cream-dots', 'wobble-grid+sprinkle-hearts': 'pastel-check' };
+  'wobble-grid': 'pastel-check', 'sprinkle-hearts': 'cream-dots', 'wobble-grid+sprinkle-hearts': 'pastel-check',
+  snow: 'cream-dots', 'xmas-lights': 'plain-minimal', 'snow+xmas-lights': 'cream-dots' };
 const CORNERS = [['br', '오른쪽 아래'], ['bl', '왼쪽 아래'], ['tr', '오른쪽 위'], ['tl', '왼쪽 위'], ['none', '없음']];
 const SIZES3 = [['s', '작게'], ['m', '보통'], ['l', '크게']];
 const FITS = [['cover', '꽉 채우기'], ['contain', '전체 보이기']];
 const PHOTO_KEYS = [['main', '친구탭', 'bgMain'], ['chat', '채팅방', 'bgChat'], ['passcode', '잠금', 'bgPasscode']];
 const AREAS = [['full', '전체'], ['top', '위쪽 띠만'], ['none', '없음']], AREAS2 = [AREAS[0], AREAS[2]];
-const HAZE = [['none', '없음'], ['rainbow', '무지개']];
+// 눈 오는 밤은 친구탭·잠금만 (채팅방 이름·시간 글자 색은 테마로 못 바꿔서 어두운 바탕에선 안 보인다)
+const HAZE = [['none', '없음'], ['rainbow', '무지개'], ['snow-night', '눈 오는 밤'], ['xmas-glow', '크리스마스 빛']], HAZE_CHAT = HAZE.filter(h => h[0] !== 'snow-night');
 const BG_SEG = { pattern: PATTERNS, 'patternArea.main': AREAS, 'patternArea.chat': AREAS, 'patternArea.passcode': AREAS2,
-  'haze.main': HAZE, 'haze.chat': HAZE, 'haze.passcode': HAZE,
+  'haze.main': HAZE, 'haze.chat': HAZE_CHAT, 'haze.passcode': HAZE,
   'corner.main': CORNERS, 'corner.chat': CORNERS, 'corner.size': SIZES3, ...Object.fromEntries(PHOTO_KEYS.map(([k]) => [`photo.${k}.fit`, FITS])) };
 const DIM_MAX = 0.8;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -69,7 +72,7 @@ function normBg(src, preset, layout) {
     color: HEX.test(s.color || '') ? s.color.toUpperCase() : null,
     photo: Object.fromEntries(PHOTO_KEYS.map(([k]) => [k, ph(k)])),
     corner: { main: pick(c.main, CORNERS, 'br'), chat: pick(c.chat, CORNERS, layout === 'stand' ? 'br' : 'bl'), size: pick(c.size, SIZES3, 'm'), opacity: num(c.opacity, 0.15, 1, null) },
-    haze: { main: pick(hz.main, HAZE, 'none'), chat: pick(hz.chat, HAZE, 'none'), passcode: pick(hz.passcode, HAZE, 'none') },
+    haze: { main: pick(hz.main, HAZE, 'none'), chat: pick(hz.chat, HAZE_CHAT, 'none'), passcode: pick(hz.passcode, HAZE, 'none') },
   };
 }
 const getPath = (o, p) => p.split('.').reduce((x, k) => x && x[k], o);
@@ -135,16 +138,20 @@ async function toChar(input, mime = 'image/png', side = MAX_SIDE) {
     const src = typeof input === 'string' && k === 1 ? input : c.toDataURL(mime, 0.85);
     c.width = c.height = 0;
     let clear = 0; for (let i = 3; i < d.data.length; i += 4) if (d.data[i] < 128) clear++;
-    return { src, raw: { width: w, height: h, data: d.data }, transparent: clear / (w * h) >= 0.05, tol: TOL0, ready: null, readyTol: -1, empty: false };
+    return { src, raw: { width: w, height: h, data: d.data }, transparent: clear / (w * h) >= 0.05, tol: TOL0, edits: [], rev: 0, ready: null, readyKey: '', empty: false };
   } finally { if (typeof input !== 'string') URL.revokeObjectURL(url); }
 }
 
+// 캐시 열쇠 = 세기 + 손보기 버전 (손보기는 단계마다 rev 를 올린다)
+const readyKey = c => c.tol + '/' + c.rev;
 async function ready(c) {
-  if (c.ready && c.readyTol === c.tol) return c.ready;
-  c.ready = await engine.prepareCharacter(c.raw, { tolerance: c.tol });
-  c.readyTol = c.tol;
-  // 배경 지우기가 캐릭터까지 먹었는지: 남은 불투명 픽셀이 (긴 변 1024 로 줄인) 원본 넓이의 2% 미만
-  if (!c.transparent) {
+  if (c.ready && c.readyKey === readyKey(c)) return c.ready;
+  return setReady(c, await engine.prepareCharacter(c.raw, { tolerance: c.tol, edits: c.edits }));
+}
+function setReady(c, img) {
+  c.ready = img; c.readyKey = readyKey(c);
+  // 배경 지우기(또는 손보기)가 캐릭터까지 먹었는지: 남은 불투명 픽셀이 (긴 변 1024 로 줄인) 원본 넓이의 2% 미만
+  if (!c.transparent || c.edits.length) {
     const { width: w, height: h } = c.raw, k = Math.min(1, 1024 / Math.max(w, h));
     let n = 0; for (let i = 3; i < c.ready.data.length; i += 4) if (c.ready.data[i] > 10) n++;
     c.empty = n < 0.02 * Math.round(w * k) * Math.round(h * k);
@@ -321,9 +328,12 @@ document.addEventListener('paste', e => {
 async function loadDemo(couple) {
   S.demo = true; S.id = newId(); S.opts.colors = null; S.opts.name = couple ? '젤리와 호떡' : '젤리 테마';
   $('#themeName').value = S.opts.name;
+  const tok = S.id; // 기다리는 사이 사진 올리기·불러오기가 있었으면(S.id 가 바뀜) 덮어쓰지 않는다
   try {
     const [a, b] = await Promise.all([fetch('demo/jelly.png').then(r => r.blob()), couple ? fetch('demo/hotteok.png').then(r => r.blob()) : null]);
-    S.a = await toChar(a); S.b = b ? await toChar(b) : null;
+    const ca = await toChar(a), cb = b ? await toChar(b) : null;
+    if (S.id !== tok) return;
+    S.a = ca; S.b = cb;
     renderThumbs(); schedule();
   } catch { say($('#msg1'), '데모 사진을 불러오지 못했어요. 새로고침해 주세요.', 'err'); }
 }
@@ -343,24 +353,190 @@ function renderTrim() {
   const list = [['a', '내 캐릭터'], ['b', '친구 캐릭터']].filter(([w]) => S[w]);
   if (!box._k || box._k[0] !== S.a || box._k[1] !== S.b) {
     box._k = [S.a, S.b];
+    fixClose();
     box.innerHTML = '';
     for (const [w, label] of list) {
       const c = S[w], f = document.createElement('div');
       f.className = 'field';
       f.innerHTML = `<span class="lab">${label}</span><div class="chk"><figure><canvas data-w="${w}" aria-label="${label} 다듬은 결과"></canvas><figcaption></figcaption></figure></div>` +
-        (c.transparent ? '' : `<label class="lab" for="tol-${w}" style="margin-top:12px">배경 지우기 세기 <small id="tolv-${w}">${c.tol}</small></label><input type="range" id="tol-${w}" min="0" max="${TOL_MAX}" step="2" value="${c.tol}">`);
+        (c.transparent ? '' : `<label class="lab" for="tol-${w}" style="margin-top:12px">배경 지우기 세기 <small id="tolv-${w}">${c.tol}</small></label><input type="range" id="tol-${w}" min="0" max="${TOL_MAX}" step="2" value="${c.tol}">`) +
+        `<button type="button" class="btn small ghost fx-open" data-fix="${w}" style="margin-top:10px">손보기 (남은 얼룩 지우기·되살리기)</button>`;
       box.append(f);
       const r = f.querySelector('input[type=range]');
-      if (r) r.addEventListener('input', () => { c.tol = +r.value; $('#tolv-' + w).textContent = r.value; schedule(); });
+      if (r) {
+        r.addEventListener('input', () => { c.tol = +r.value; $('#tolv-' + w).textContent = r.value; schedule(); });
+        r.addEventListener('change', () => { if (F.c === c) fixOpen(c, F.anchor); }); // 세기가 바뀌면 손보기 바탕도 다시
+      }
     }
   }
   for (const cv of $$('canvas[data-w]', box)) {
     const c = S[cv.dataset.w], cap = cv.nextElementSibling;
     if (!c) continue;
     if (c.ready) drawImg(cv, c.ready);
-    cap.textContent = c.transparent ? '이미 배경이 투명해요. 그대로 써요.' : c.empty ? EMPTY_MSG : '배경이 덜 지워지면 오른쪽으로, 캐릭터가 깎이면 왼쪽으로 옮겨요.';
+    cap.textContent = c.empty ? (c.edits.length ? '손보기로 캐릭터가 거의 다 지워졌어요. 되돌리기를 눌러 주세요.' : EMPTY_MSG) : c.edits.length ? `손본 곳 ${c.edits.length}군데가 들어갔어요.` : c.transparent ? '이미 배경이 투명해요. 그대로 써요.' : '배경이 덜 지워지면 오른쪽으로, 캐릭터가 깎이면 왼쪽으로 옮겨요.';
     cap.classList.toggle('warn', !!c.empty);
   }
+}
+
+// ---------- 손보기: 자동 지우기가 못 가른 곳(바닥 그림자, 흰 배경 위 흰 테두리, 팔 사이 배경, 남은 얼룩)을 손으로 ----------
+// 결과는 c.edits (단계 목록, 좌표 = 긴 변 1024 로 줄인 그림) 에 쌓이고 prepareCharacter 가 다시 그대로 재생한다 (세기를 바꿔도 남음)
+const TAP_TOL = 36, BRUSH = { s: 0.012, m: 0.025, l: 0.05 };
+const FX_TOOLS = [['e', '톡 지우기'], ['r', '톡 되살리기'], ['be', '지우개 붓'], ['br', '되살리기 붓']];
+const FX_HINT = { e: '지울 곳을 톡 누르면 비슷한 색으로 이어진 만큼 지워져요.', r: '잘못 지워진 곳을 톡 누르면 원래대로 돌아와요.',
+  be: '손가락으로 문질러 지워요.', br: '문지른 곳이 원래 사진으로 돌아와요.' };
+const F = { c: null, anchor: null, label: '', tool: 'e', size: 'm', zoom: false, cleared: null, strokeN: 0, base: null, orig: null, cur: null, stroke: null, tap: null, ptrs: new Map(), raf: 0 };
+const fx = document.createElement('div');
+fx.className = 'fixer'; fx.hidden = true;
+fx.innerHTML = `<div class="fx-title"></div>
+  <div class="seg fx-tools" data-fx-tool role="group" aria-label="손보기 도구">${FX_TOOLS.map(([v, t]) => `<button type="button" data-v="${v}">${t}</button>`).join('')}</div>
+  <div class="seg" data-fx-size role="group" aria-label="붓 크기">${SIZES3.map(([v, t]) => `<button type="button" data-v="${v}">붓 ${t}</button>`).join('')}</div>
+  <div class="fx-view"><canvas aria-label="손보기 화면. 체크무늬가 투명한 곳이에요"></canvas></div>
+  <p class="hint fx-hint" role="status"></p>
+  <div class="fx-row"><button type="button" class="btn small ghost" data-fx="undo">되돌리기</button><button type="button" class="btn small ghost" data-fx="clear">처음으로</button>` +
+  `<button type="button" class="btn small ghost" data-fx="zoom">2배 보기</button><button type="button" class="btn small primary" data-fx="done">다 했어요</button></div>`;
+const fxCv = $('canvas', fx), fxView = $('.fx-view', fx);
+
+function fixOpen(c, anchor, label = F.label) {
+  if (!engine || !c || !anchor) return;
+  const K = engine.keying;
+  Object.assign(F, { c, anchor, label, stroke: null, tap: null, cleared: null });
+  F.ptrs.clear();
+  F.orig = K.downscale(c.raw, 1024); F.base = K.keyBase(c.raw, c.tol); F.cur = K.applyEdits(F.base, F.orig, c.edits);
+  anchor.after(fx); fx.hidden = false;
+  fxZoom(false); fxSync(); fxDraw();
+}
+function fixClose() {
+  Object.assign(F, { c: null, anchor: null, base: null, orig: null, cur: null, stroke: null, tap: null, cleared: null });
+  F.ptrs.clear();
+  fx.hidden = true; fx.remove();
+}
+function fxSync() {
+  const c = F.c; if (!c) return;
+  $('.fx-title', fx).textContent = `${F.label} 손보기`;
+  $$('[data-fx-tool] button', fx).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === F.tool)));
+  $$('[data-fx-size] button', fx).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === F.size)));
+  $('[data-fx-size]', fx).hidden = F.tool[0] !== 'b';
+  $('[data-fx="clear"]', fx).disabled = !c.edits.length;
+  $('[data-fx="undo"]', fx).disabled = !c.edits.length && !F.cleared;
+  const z = $('[data-fx="zoom"]', fx); z.setAttribute('aria-pressed', String(F.zoom)); z.textContent = F.zoom ? '원래 크기' : '2배 보기';
+  $('.fx-hint', fx).textContent = FX_HINT[F.tool] + (F.zoom && F.tool[0] === 'b' ? ' 두 손가락으로 끌면 화면이 움직여요.' : '');
+}
+function fxDraw() {
+  if (F.raf) return;
+  F.raf = requestAnimationFrame(() => {
+    F.raf = 0;
+    const im = F.cur; if (!im) return;
+    if (fxCv.width !== im.width || fxCv.height !== im.height) { fxCv.width = im.width; fxCv.height = im.height; }
+    fxCv.getContext('2d').putImageData(new ImageData(im.data, im.width, im.height), 0, 0);
+  });
+}
+function fxZoom(on) {
+  F.zoom = on;
+  const st = fxCv.style;
+  if (!on) { st.width = st.maxWidth = st.maxHeight = ''; return; }
+  const w = fxCv.getBoundingClientRect().width;
+  st.maxWidth = st.maxHeight = 'none'; st.width = Math.round(w * 2) + 'px';
+  fxView.scrollLeft = (fxView.scrollWidth - fxView.clientWidth) / 2; fxView.scrollTop = (fxView.scrollHeight - fxView.clientHeight) / 2;
+}
+// 한 단계가 끝날 때마다: 미리보기용 결과를 바로 넣고(다시 키잉 안 함) 다듬기·자리별 그림·폰 미리보기를 다시 그린다
+function fxChanged() {
+  const c = F.c;
+  c.rev++;
+  setReady(c, engine.keying.cropToAlpha(F.cur));
+  const y0 = fxCv.getBoundingClientRect().top; // 위 안내 글 줄 수가 바뀌어도 손보기 화면이 제자리에 (iOS 사파리는 스크롤 앵커링 없음)
+  fxDraw(); fxSync(); renderTrim(); renderSlots(); schedule();
+  const dy = fxCv.getBoundingClientRect().top - y0; if (dy) scrollBy(0, dy);
+}
+function fxReplay() { F.cur = engine.keying.applyEdits(F.base, F.orig, F.c.edits); fxChanged(); }
+// 그림 안으로 고정: 포인터 캡처로 캔버스 밖까지 끈 점도 저장/불러오기(normEdits 0~) 뒤 똑같이 재생되게
+const fxPt = e => { const r = fxCv.getBoundingClientRect(), cl = (v, n) => Math.min(n - 1, Math.max(0, v));
+  return [cl(Math.floor((e.clientX - r.left) * fxCv.width / r.width), fxCv.width), cl(Math.floor((e.clientY - r.top) * fxCv.height / r.height), fxCv.height)]; };
+const brushR = () => Math.max(2, Math.round(Math.max(F.cur.width, F.cur.height) * BRUSH[F.size]));
+
+fxCv.addEventListener('pointerdown', e => {
+  if (!F.c) return;
+  e.preventDefault();
+  try { fxCv.setPointerCapture(e.pointerId); } catch {}
+  F.ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (F.ptrs.size > 1) { // 두 손가락 = 화면 옮기기. 그리던 붓은 취소
+    if (F.stroke) { F.stroke = null; F.cur = engine.keying.applyEdits(F.base, F.orig, F.c.edits); fxDraw(); }
+    F.tap = null; return;
+  }
+  F.tap = [e.clientX, e.clientY];
+  if (F.tool[0] === 'b') {
+    const [x, y] = fxPt(e);
+    F.stroke = { t: F.tool, r: brushR(), p: [x, y] };
+    F.strokeN = engine.keying.stamp(F.cur, F.orig, x, y, x, y, F.stroke.r, F.tool === 'br'); fxDraw();
+  }
+});
+fxCv.addEventListener('pointermove', e => {
+  const prev = F.ptrs.get(e.pointerId); if (!prev || !F.c) return;
+  F.ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (F.ptrs.size > 1) { const n = F.ptrs.size; fxView.scrollLeft -= (e.clientX - prev[0]) / n; fxView.scrollTop -= (e.clientY - prev[1]) / n; return; }
+  if (!F.stroke) return;
+  const [x, y] = fxPt(e), p = F.stroke.p, lx = p[p.length - 2], ly = p[p.length - 1];
+  if (Math.hypot(x - lx, y - ly) < Math.max(1, F.stroke.r / 3)) return;
+  p.push(x, y);
+  F.strokeN += engine.keying.stamp(F.cur, F.orig, lx, ly, x, y, F.stroke.r, F.stroke.t === 'br'); fxDraw();
+});
+function fxUp(e) {
+  if (!F.ptrs.delete(e.pointerId) || !F.c) return;
+  if (F.stroke) {
+    if (F.ptrs.size) return;
+    const op = F.stroke; F.stroke = null;
+    if (e.type === 'pointercancel') { F.cur = engine.keying.applyEdits(F.base, F.orig, F.c.edits); fxDraw(); return; }
+    if (!F.strokeN) { $('.fx-hint', fx).textContent = op.t === 'be' ? '여기는 이미 투명해요. 남은 곳을 문질러 주세요.' : '여기는 지워진 곳이 아니에요.'; return; }
+    fxPush(op); return;
+  }
+  const t = F.tap; F.tap = null;
+  if (!t || e.type !== 'pointerup' || F.tool[0] === 'b' || Math.hypot(e.clientX - t[0], e.clientY - t[1]) > 10) return;
+  const [x, y] = fxPt(e), op = { t: F.tool, x, y, tol: TAP_TOL }, before = F.cur, next = engine.keying.applyEdit(before, F.orig, op);
+  let changed = false;
+  for (let i = 3; i < next.data.length; i += 4) if (next.data[i] !== before.data[i]) { changed = true; break; }
+  if (!changed) {
+    const i = (y * F.cur.width + x) * 4 + 3, erased = F.cur.data[i] !== F.orig.data[i]; // 지워진 곳인데 그대로 = 그림 가장자리(배경)까지 이어져 멈춤
+    $('.fx-hint', fx).textContent = F.tool === 'e' ? '여기는 이미 투명해요. 남은 곳을 눌러 주세요.' : erased ? '배경까지 돌아와서 멈췄어요. 테두리는 되살리기 붓으로 문질러 주세요.' : '여기는 지워진 곳이 아니에요.';
+    return;
+  }
+  F.cur = next; fxPush(op);
+}
+function fxPush(op) { F.c.edits.push(op); F.cleared = null; fxChanged(); }
+fxCv.addEventListener('pointerup', fxUp);
+fxCv.addEventListener('pointercancel', fxUp);
+fx.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !F.c || b.disabled) return;
+  if (b.closest('[data-fx-tool]')) F.tool = b.dataset.v;
+  else if (b.closest('[data-fx-size]')) F.size = b.dataset.v;
+  else if (b.dataset.fx === 'undo') { if (!F.c.edits.length && F.cleared) { F.c.edits = F.cleared; F.cleared = null; } else F.c.edits.pop(); return fxReplay(); }
+  else if (b.dataset.fx === 'clear') { F.cleared = F.c.edits; F.c.edits = []; return fxReplay(); } // 되돌리기로 한 번에 복구
+  else if (b.dataset.fx === 'zoom') fxZoom(!F.zoom);
+  else if (b.dataset.fx === 'done') { const a = F.anchor; fixClose(); a.scrollIntoView({ block: 'nearest' }); return; }
+  fxSync();
+});
+// 여는 버튼: 다듬기(data-fix="a"|"b") · 자리별 그림(data-fix="slot:경로"). 다시 누르면 닫힘
+document.addEventListener('click', e => {
+  const b = e.target.closest('.fx-open'); if (!b) return;
+  const k = b.dataset.fix, slot = k.startsWith('slot:') ? k.slice(5) : null, c = slot ? S.slots[slot] : S[k];
+  if (!c) return;
+  if (F.c === c) return fixClose();
+  fixOpen(c, b.closest(slot ? '.slots' : '.field'), slot ? SLOT_NAME[slot] : k === 'a' ? '내 캐릭터' : '친구 캐릭터');
+});
+/** 프로젝트 파일의 edits 검증: 아는 도구만, 정수 좌표, 단계 수·점 수 상한 (모르면 빈 목록) */
+function normEdits(list) {
+  if (!Array.isArray(list)) return [];
+  const int = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : null;
+  const out = [];
+  for (const e of list.slice(0, 500)) {
+    if (!e || typeof e !== 'object') continue;
+    if (e.t === 'e' || e.t === 'r') {
+      const x = int(e.x, 0, 4096), y = int(e.y, 0, 4096), tol = int(e.tol, 0, 442);
+      if (x !== null && y !== null && tol !== null) out.push({ t: e.t, x, y, tol });
+    } else if ((e.t === 'be' || e.t === 'br') && Array.isArray(e.p) && e.p.length >= 2) {
+      const r = int(e.r, 1, 256), p = e.p.slice(0, 20000).map(v => int(v, 0, 4096));
+      if (r !== null && p.length >= 2 && !p.includes(null)) out.push({ t: e.t, r, p: p.slice(0, p.length & ~1) });
+    }
+  }
+  return out;
 }
 
 // ---------- 3 꾸미기 ----------
@@ -564,13 +740,13 @@ $('#bgAuto').addEventListener('click', () => setBg('color', null));
 // 자리별 그림: 칸 하나 = 업로드(키잉) + 썸네일 + 지우기
 $('#slotList').innerHTML = SLOT_GROUPS.map(([g, list]) => `<div class="slot-g">${g}</div><div class="slots">` + list.map(([p, t]) =>
   `<div class="slot" data-slot="${p}"><label class="pick"><img alt="" hidden><span>자동</span><input type="file" class="sr" accept="image/png,image/jpeg,image/webp" aria-label="${t} 그림 넣기"></label>` +
-  `<span>${t}</span><button type="button" class="x" hidden aria-label="${t} 그림 지우기">지우기</button></div>`).join('') + '</div>').join('') + '<p class="msg" id="msgSlot" role="status"></p>';
+  `<span>${t}</span><button type="button" class="x fx-open" hidden data-fix="slot:${p}" aria-label="${t} 그림 손보기">손보기</button><button type="button" class="x" data-x hidden aria-label="${t} 그림 지우기">지우기</button></div>`).join('') + '</div>').join('') + '<p class="msg" id="msgSlot" role="status"></p>';
 function renderSlots() {
   const bad = [], frag = [];
   for (const el of $$('[data-slot]')) {
     const p = el.dataset.slot, c = S.slots[p], img = el.querySelector('img');
     el.classList.toggle('on', !!c); el.classList.toggle('warn', !!(c && (c.empty || c.frag)));
-    img.hidden = el.querySelector('.x').hidden = !c; el.querySelector('.pick span').hidden = !!c;
+    img.hidden = !c; for (const x of $$('.x', el)) x.hidden = !c; el.querySelector('.pick span').hidden = !!c;
     if (c && img.getAttribute('src') !== c.src) img.src = c.src;
     if (c && c.empty) bad.push(SLOT_NAME[p]);
     if (c && c.frag) frag.push(SLOT_NAME[p]);
@@ -589,12 +765,15 @@ function renderSlots() {
 $('#slotList').addEventListener('change', async e => {
   const inp = e.target.closest('[data-slot] input[type=file]'); if (!inp || !inp.files[0]) return;
   const p = inp.closest('[data-slot]').dataset.slot, f = inp.files[0]; inp.value = '';
+  if (F.c && F.c === S.slots[p]) fixClose();
   try { S.slots[p] = Object.assign(await toChar(f, 'image/png', SLOT_SIDE), { slot: true }); renderSlots(); schedule(); }
   catch { say($('#msgSlot'), '이 그림은 열 수 없어요. png, jpg, webp 그림을 넣어 주세요.', 'err'); }
 });
 $('#slotList').addEventListener('click', e => {
-  const x = e.target.closest('.x'); if (!x) return;
-  delete S.slots[x.closest('[data-slot]').dataset.slot]; renderSlots(); schedule();
+  const x = e.target.closest('[data-x]'); if (!x) return;
+  const p = x.closest('[data-slot]').dataset.slot;
+  if (F.c && F.c === S.slots[p]) fixClose();
+  delete S.slots[p]; renderSlots(); schedule();
 });
 
 // ---------- 4 받기 ----------
@@ -748,7 +927,8 @@ $('#brag').addEventListener('click', async () => {
 // ---------- 프로젝트 저장 / 불러오기 ----------
 $('#saveProj').addEventListener('click', () => {
   if (!S.a) return say($('#msgX'), '사진을 먼저 넣어 주세요.', 'err');
-  const pack = c => c && { src: c.src, tol: c.tol };
+  // edits = 손보기 단계 (없으면 키를 안 쓴다: 옛 앱은 모르는 키를 무시)
+  const pack = c => c && { src: c.src, tol: c.tol, ...(c.edits.length ? { edits: c.edits } : {}) };
   // v3: 배경 옵션 + 배경 사진(dataURL) + 자리별 그림. 옛 v1/v2 는 불러오기에서 그대로 읽힌다
   const json = JSON.stringify({ app: 'tokku-kit', v: 3, id: S.id, options: { ...S.opts }, a: pack(S.a), b: pack(S.b), couple: !!S.couple,
     photos: Object.fromEntries(Object.entries(S.photos).map(([k, c]) => [k, { src: c.src }])),
@@ -772,13 +952,14 @@ $('#fileProj').addEventListener('change', async e => {
     S.id = /^[0-9a-f]{12}$/.test(j.id) ? j.id : newId();
     S.demo = false;
     const tolOf = t => (typeof t === 'number' && Number.isFinite(t) ? Math.min(TOL_MAX, Math.max(0, t)) : TOL0); // 0(안 지우기)도 그대로
-    const a = await toChar(j.a.src); a.tol = tolOf(j.a.tol);
-    const b = j.b ? await toChar(j.b.src) : null; if (b) b.tol = tolOf(j.b.tol);
+    const a = await toChar(j.a.src); a.tol = tolOf(j.a.tol); a.edits = normEdits(j.a.edits);
+    const b = j.b ? await toChar(j.b.src) : null; if (b) { b.tol = tolOf(j.b.tol); b.edits = normEdits(j.b.edits); }
     const photos = {}, slots = {};
     for (const [k] of PHOTO_KEYS) { const p = j.photos && j.photos[k]; if (p && okSrc(p.src)) photos[k] = await toChar(p.src, 'image/jpeg', PHOTO_SIDE); }
     for (const [k, v] of Object.entries(j.slots && typeof j.slots === 'object' ? j.slots : {})) {
-      if (SLOT_NAME[k] && v && okSrc(v.src)) { slots[k] = Object.assign(await toChar(v.src, 'image/png', SLOT_SIDE), { slot: true }); slots[k].tol = tolOf(v.tol); }
+      if (SLOT_NAME[k] && v && okSrc(v.src)) { slots[k] = Object.assign(await toChar(v.src, 'image/png', SLOT_SIDE), { slot: true }); slots[k].tol = tolOf(v.tol); slots[k].edits = normEdits(v.edits); }
     }
+    fixClose();
     S.a = a; S.b = b; S.photos = photos; S.slots = slots;
     S.tpl = matchTpl();
     renderThumbs(); syncControls(); renderSlots(); schedule();
@@ -797,7 +978,7 @@ function normOpts(o, base) {
   return {
     ...picked,
     name: typeof o.name === 'string' ? o.name.slice(0, 24) : base.name,
-    pixelChar: bool('pixelChar'), pixelBubble: bool('pixelBubble'), slotsArePixel: bool('slotsArePixel'),
+    pixelChar: bool('pixelChar'), pixelBubble: bool('pixelBubble'), slotsArePixel: bool('slotsArePixel'), hat: bool('hat'),
     colors: okColors ? o.colors : (o.colors === undefined ? base.colors || null : null),
     background: o.background || !base.background ? normBg(o.background, picked.preset, picked.layout) : base.background,
   };
@@ -834,6 +1015,7 @@ async function loadPack(url, vid, keepLook = false) {
   if (keepLook && typeof P.slotsArePixel === 'boolean') vo.slotsArePixel = P.slotsArePixel;
   S.opts = { ...S.opts, ...normOpts(vo, keepLook ? S.opts : { ...DEF, name: S.opts.name, background: null }) };
   S.bgUndo = null;
+  fixClose();
   S.a = a; S.b = b; S.photos = keepLook ? S.photos : {};
   S.slots = Object.fromEntries(slotList.map(([k], i) => [k, Object.assign(arts[i], { slot: true })]));
   S.id = newId(); S.demo = false;
@@ -891,7 +1073,7 @@ try {
     }
   }
   await buildHero().catch(e => { console.error(e); hero.setLoading(true, '데모를 그리지 못했어요. 새로고침해 주세요.'); });
-  if (!S.pack) await loadDemo(false);
+  if (!S.pack && !S.a) await loadDemo(false);
 } catch (e) {
   engine = null;
   $('#engineNoteText').textContent = '만들기 엔진을 불러오지 못했어요. 잠시 뒤 새로고침해 주세요. 페이지 안내는 그대로 볼 수 있어요.';

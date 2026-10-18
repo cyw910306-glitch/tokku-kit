@@ -216,6 +216,43 @@ async function pageChecks(browser, bname, results) {
         return { w: cv.width, h: cv.height, fill: o / (cv.width * cv.height), max: document.querySelector('#trimList input[type=range]').max,
           warn: document.querySelector('#trimList figcaption').classList.contains('warn'), disabled: document.querySelector('#getTheme').disabled };
       });
+      // 손보기 1회: 톡 지우기(가운데) → 지운 만큼 줄고 → 붓 한 번 + 되돌리기 → 프로젝트 저장에 edits → 다시 불러와도 같은 결과
+      const opaq = () => page.evaluate(() => { const cv = document.querySelector('#trimList canvas'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        let o = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 10) o++; return o; });
+      const cap = () => page.textContent('#trimList figcaption');
+      const o0 = await opaq();
+      await page.click('.fx-open[data-fix="a"]');
+      await page.waitForSelector('.fixer:not([hidden]) canvas');
+      await page.waitForFunction(() => document.querySelector('.fixer canvas').width > 300);
+      await page.evaluate(() => document.querySelector('.fixer canvas').scrollIntoView({ block: 'center', behavior: 'instant' }));
+      const box = await page.locator('.fixer canvas').boundingBox();
+      const hitEl = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.tagName + '.' + e.className : 'none'; }, [box.x + box.width / 2, box.y + box.height / 2]);
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await page.waitForFunction(() => /손본 곳 1군데/.test(document.querySelector('#trimList figcaption').textContent), null, { timeout: 15000 })
+        .catch(async e => { throw new Error(`손보기 탭 실패: hit ${hitEl} box ${JSON.stringify(box)} ` + await page.evaluate(() => [document.querySelector('.fx-hint').textContent, document.querySelector('#trimList figcaption').textContent, scrollY].join(' | '))); });
+      const o1 = await opaq();
+      await page.click('.fixer [data-fx-tool] button[data-v="be"]');
+      await page.evaluate(() => document.querySelector('.fixer canvas').scrollIntoView({ block: 'center', behavior: 'instant' }));
+      const bb = await page.locator('.fixer canvas').boundingBox();
+      await page.mouse.move(bb.x + 10, bb.y + 10); await page.mouse.down(); await page.mouse.move(bb.x + bb.width - 10, bb.y + bb.height - 10, { steps: 8 }); await page.mouse.up();
+      await page.waitForFunction(() => /손본 곳 2군데/.test(document.querySelector('#trimList figcaption').textContent), null, { timeout: 15000 });
+      await page.click('.fixer [data-fx="undo"]');
+      await page.waitForFunction(() => /손본 곳 1군데/.test(document.querySelector('#trimList figcaption').textContent), null, { timeout: 15000 });
+      const fxSw = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+      await page.locator('.fixer').screenshot({ path: join(OUT, `shot-${bname}-fixer.png`) });
+      await page.click('.fixer [data-fx="done"]');
+      await page.click('.stepper button[data-go="4"]');
+      const [fdl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.click('#saveProj')]);
+      const fj = join(OUT, `${bname}-fix-project.json`);
+      await fdl.saveAs(fj);
+      const FJ = JSON.parse(readFileSync(fj, 'utf8'));
+      await page.setInputFiles('#fileProj', fj);
+      await page.waitForFunction(() => /불러왔어요|아니에요/.test(document.querySelector('#msg1').textContent), null, { timeout: 15000 });
+      await page.click('.stepper button[data-go="2"]');
+      await page.waitForFunction(() => { const c = document.querySelector('#trimList canvas'); return c && !(c.width === 300 && c.height === 150) && /손본 곳 1군데/.test(document.querySelector('#trimList figcaption').textContent); }, null, { timeout: 20000 });
+      const o2 = await opaq();
+      results.rows.push({ browser: bname, check: '손보기 (톡 지우기 · 붓 · 되돌리기 · 저장/불러오기)', ok: o1 < o0 && o1 > 0 && FJ.v === 3 && FJ.a.edits && FJ.a.edits.length === 1 && FJ.a.edits[0].t === 'e'
+        && o2 === o1 && fxSw[0] <= fxSw[1], detail: `불투명 ${o0} → ${o1} → 불러온 뒤 ${o2}, 저장 edits ${JSON.stringify(FJ.a.edits)}, ${await cap()}, scroll ${fxSw.join('/')}` });
       await page.click('.stepper button[data-go="1"]');
       await page.setInputFiles('#fileA', join(FX, 'plain-beige.png'));
       await page.click('.stepper button[data-go="4"]');
@@ -333,6 +370,9 @@ async function buildChecks(browser, bname, results) {
   // 새 옵션 조합 고정 표본: 픽셀 + 가운데 빼꼼 + 02 빼꼼 / 커플 올라앉기 + 02 빼꼼 + 파스텔·먹색·키패드 / 무지개 헤이즈 3화면
   jobs.push(['single', { name: '젤리 픽셀 가운데 빼꼼', id: ID, layout: 'peek', peekPos: 'center', groupChar: 'peek', pixelChar: true, pixelBubble: true, preset: 'cream-dots' }]);
   jobs.push(['couple', { name: '젤리 호떡 포스트잇', id: ID, layout: 'perch', groupChar: 'peek', bubbleShape: 'note', outline: 'none', fillTone: 'pastel', textTone: 'mono', keypadTone: 'char', preset: 'pastel-check' }]);
+  // 크리스마스 고정 표본: 픽셀 + 산타모자(도트 모자) + 눈·전구 + 밤하늘 / 커플 서기 + 모자 + xmas 면 + 장식 산타모자 + 크리스마스 빛
+  jobs.push(['single', { name: '젤리 픽셀 눈 오는 밤', id: ID, layout: 'peek', groupChar: 'peek', hat: true, deco: 'snowflake', fillTone: 'xmas', pixelChar: true, pixelBubble: true, preset: 'cream-dots', background: { pattern: 'snow+xmas-lights', haze: { main: 'snow-night', chat: 'xmas-glow', passcode: 'snow-night' } } }]);
+  jobs.push(['couple', { name: '젤리 호떡 크리스마스', id: ID, layout: 'stand', hat: true, deco: 'santa-hat', fillTone: 'xmas', textTone: 'mono', preset: 'plain-minimal', background: { pattern: 'xmas-lights', haze: { main: 'xmas-glow', chat: 'xmas-glow', passcode: 'xmas-glow' } } }]);
   jobs.push(['single', { name: '젤리 무지개', id: ID, layout: 'hang', groupChar: 'peek', preset: 'cream-dots', background: { pattern: 'wobble-grid+sprinkle-hearts', haze: { main: 'rainbow', chat: 'rainbow', passcode: 'rainbow' } } }]);
   // 배경 커스텀 + 사진 + 자리별 그림 (일반 / 픽셀 / 커플)
   const BG = { pattern: 'cubes', patternSize: 'l', color: '#F4E9DD', photo: { chat: { fit: 'contain', blur: 6, dim: 0.3 } }, corner: { main: 'tl', chat: 'none', size: 's', opacity: 0.6 } };

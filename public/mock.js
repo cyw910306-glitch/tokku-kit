@@ -180,6 +180,10 @@ export function createPhone(host, { tab = 'chat', label = '테마 미리보기' 
       const files = Object.fromEntries(['Send01', 'Send02', 'Receive01', 'Receive02'].map(f => [f, u('chatroomBubble' + f)]));
       style.textContent = info.rules ? info.rules(meta, files, q) : bubbleRule(q + '.s .b', u('chatroomBubbleSend01'), B['01'], false) + bubbleRule(q + '.s.g .b', u('chatroomBubbleSend02'), B['02'], false) +
         bubbleRule(q + '.r .b', u('chatroomBubbleReceive01'), B['01'], true) + bubbleRule(q + '.r.g .b', u('chatroomBubbleReceive02'), B['02'], true);
+      // 헤이즈 위 글자 (meta.bgText, 크리스마스 헤이즈): 친구탭 목록·머리글, 잠금 제목만 그 색
+      const t = meta.bgText || {};
+      if (t.main) style.textContent += `${q}.hdr,${q}.me,${q}.fr{color:${t.main.text}}${q}.st,${q}.sec{color:${t.main.muted}}`;
+      if (t.passcode) style.textContent += `${q}.pt{color:${t.passcode.text}}`;
       last = [u, p, info];
       html = screens(u, p, info, sel);
       show();

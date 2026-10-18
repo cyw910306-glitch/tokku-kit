@@ -1065,3 +1065,173 @@ test('render sticky: same input = same bytes, new patterns + haze draw, keypad =
   }
   assert.equal(hs.size, 4);
 });
+
+// ---------- 크리스마스: 눈·전구 무늬, 밤하늘·크리스마스 빛 헤이즈, 산타모자, 장식, fillTone xmas (2026-10-18 추가, 골든은 안 바뀜) ----------
+import { textOn } from '../public/engine/palette.js';
+import { santaHat, decoImage, hatAt } from '../public/engine/bubble.js';
+import { HAZE_TEXT_BG } from '../public/engine/render.js';
+const hueImg = h => blob(120, 100, [0, -120, 120].map(d => Math.round(127 + 120 * Math.cos((h + d) * Math.PI / 180))));
+const XMAS_IDS = ['xmas-night', 'xmas-sticky', 'holly-card'];
+
+test('xmas background: snow / xmas-lights / snow-night / xmas-glow resolve, snow-night not allowed in chat, templates carry valid bg', () => {
+  for (const p of ['snow', 'xmas-lights', 'snow+xmas-lights']) assert.equal(resolveBackground('cream-dots', { pattern: p }).pattern, p);
+  for (const w of ['main', 'passcode']) for (const hz of ['snow-night', 'xmas-glow']) assert.equal(resolveBackground('cream-dots', { haze: { [w]: hz } }).haze[w], hz);
+  assert.equal(resolveBackground('cream-dots', { haze: { chat: 'xmas-glow' } }).haze.chat, 'xmas-glow');
+  assert.throws(() => resolveBackground('cream-dots', { haze: { chat: 'snow-night' } }), /haze\.chat/);
+  for (const id of XMAS_IDS) {
+    const t = TEMPLATES.find(x => x.id === id);
+    assert.ok(t && t.bg, id);
+    const o = normalizeOptions({ ...DEFAULTS, ...t.opts, background: t.bg, id: 'a1b2c3d4e5f6' });
+    assert.deepEqual(resolveBackground(o.preset, o.background), o.background, `${id}: idempotent`);
+  }
+  const n = TEMPLATES.find(x => x.id === 'xmas-night'), s = TEMPLATES.find(x => x.id === 'xmas-sticky'), h = TEMPLATES.find(x => x.id === 'holly-card');
+  assert.deepEqual([n.bg.haze.main, n.bg.pattern, n.opts.hat, n.opts.deco], ['snow-night', 'snow', true, 'star']);
+  assert.deepEqual([s.opts.bubbleShape, s.opts.peekPos, s.opts.groupChar, s.opts.hat, s.bg.haze.chat, s.bg.pattern], ['note', 'center', 'peek', true, 'xmas-glow', 'xmas-lights']);
+  assert.deepEqual([h.opts.fillTone, h.opts.deco], ['cream', 'holly']);
+  assert.equal(normalizeOptions({}).hat, false);
+  assert.equal(normalizeOptions({ hat: 1 }).hat, true);
+});
+
+test('xmas text: snow-night gets light text (4.5 / 3 on every sky color), xmas-glow keeps or darkens text, many hues, deterministic', () => {
+  for (let h = 0; h < 360; h += 30) for (const tone of ['palette', 'mono']) {
+    const pal = applyTextTone(applyFillTone(derive(hueImg(h)), 'xmas'), tone);
+    for (const [kind, cols] of Object.entries(HAZE_TEXT_BG)) {
+      const t = textOn(cols, pal);
+      assert.deepEqual(textOn(cols, pal), t, 'deterministic');
+      for (const c of cols) {
+        assert.ok(contrast(t.text, c) >= 4.5, `${kind} hue ${h} ${tone}: text ${t.text} on ${c}`);
+        assert.ok(contrast(t.muted, c) >= 3, `${kind} hue ${h} ${tone}: muted ${t.muted} on ${c}`);
+      }
+      assert.equal(t.dark, kind === 'snow-night');
+      if (kind === 'snow-night') assert.ok(rgbToOklch(rgb(t.text))[0] > 0.9, 'night text is light');
+      else assert.equal(t.text, pal.text, 'light haze keeps the palette text when it already reads');
+    }
+    // xmas 면 위 본문 글자
+    for (const k of ['sendFill', 'recvFill', 'sendSel', 'recvSel']) assert.ok(contrast(pal.text, pal[k]) >= 4.5, `hue ${h}: text on xmas ${k}`);
+  }
+});
+
+test('fillTone xmas: warm red send / light green receive, user colors win per key', () => {
+  const x = applyFillTone(PAL, 'xmas');
+  const [, , hs] = rgbToOklch(rgb(x.sendFill)), [, , hr] = rgbToOklch(rgb(x.recvFill));
+  assert.ok(hs < 45 || hs > 345, `send hue red ${hs}`); assert.ok(hr > 120 && hr < 180, `receive hue green ${hr}`);
+  const k = applyFillTone({ ...PAL, sendFill: '#123456' }, 'xmas', ['sendFill']);
+  assert.equal(k.sendFill, '#123456'); assert.equal(k.recvFill, x.recvFill);
+  assert.ok(Object.keys(FILL_TONES_ALL()).includes('xmas'));
+});
+const FILL_TONES_ALL = () => api.FILL_TONES;
+
+test('css bgText: only main header/list/section/feature lines + passcode title change; night list bg = sky; no token left', () => {
+  const meta = { bubbles: { '01': bubbleSpec('perch', false, false), '02': bubbleSpec('perch', false, true) }, palette: PAL, themeId: themeId('a1b2c3d4e5f6'), themeName: 'x' };
+  const plain = buildCss(meta), t = { text: '#FAFAFA', muted: '#C8C8C8', bg: '#223E61' };
+  assert.equal(buildCss({ ...meta, bgText: {} }), plain, 'empty bgText = old css');
+  for (const tone of ['palette', 'mono']) {
+    const css = buildCss({ ...meta, textTone: tone, bgText: { main: t, passcode: t } });
+    assert.ok(!/\{\{/.test(css));
+    assert.match(css, /HeaderStyle-Main\s+\{\s+-ios-text-color: #FAFAFA;\s+-ios-tab-text-color: #C8C8C8;/);
+    assert.match(css, /MainViewStyle-Primary\s+\{\s+background-color: #223E61;[^}]*-ios-text-color: #FAFAFA;[^}]*-ios-description-text-color: #C8C8C8;/);
+    assert.match(css, /SectionTitleStyle-Main\s+\{[^}]*-ios-text-color: #FAFAFA;/);
+    assert.match(css, /LabelStyle-PasscodeTitle \{ -ios-text-color: #FAFAFA; \}/);
+    assert.match(css, new RegExp(`MessageCellStyle-Send[^}]*-ios-text-color: ${tone === 'mono' ? PAL.text : PAL.text};`), 'bubble text untouched');
+    assert.match(css, new RegExp(`-ios-keypad-text-normal-color: ${PAL.text};`), 'keypad text untouched');
+  }
+  const light = buildCss({ ...meta, bgText: { main: { ...t, bg: null } } });
+  assert.match(light, new RegExp(`MainViewStyle-Primary\\s+\\{\\s+background-color: ${PAL.bg};`), 'light haze keeps list bg');
+});
+
+test('santaHat: deterministic, sits centered on the top of the alpha, 40~75% of the top band width, grows the canvas upward, binary for sprites', () => {
+  const img = blob(200, 160);
+  const a = santaHat(img), b = santaHat(img);
+  assert.deepEqual(a.data, b.data); assert.ok(a.hatTop > 0 && a.height === img.height + a.hatTop && a.width >= img.width);
+  // 원래 그림은 hatTop 만큼 아래로 옮겨져 그대로 (모자 아래 부분 밖)
+  const red = [], R = rgb('#D2364A');
+  for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) { const i = (y * a.width + x) * 4; if (a.data[i + 3] === 255 && near([a.data[i], a.data[i + 1], a.data[i + 2]], R, 2)) red.push([x, y]); }
+  assert.ok(red.length > 100, 'red cone drawn');
+  const top = a.hatTop + Math.round(160 * 0.05); // blob 알파 윗변 (높이 160 의 5% 근처)
+  assert.ok(red.every(([, y]) => y < top + 20), 'hat stays on the head top');
+  const xs = red.map(p => p[0]), cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  assert.ok(Math.abs(cx - 100) < 40, `hat roughly centered ${cx}`);
+  // 털 테두리(흰) 폭 = 머리 띠 폭의 55~70%
+  let x0 = 1e9, x1 = -1; const top20 = [];
+  for (let y = 0; y < 160 * 0.2; y++) for (let x = 0; x < 200; x++) if (img.data[(y * 200 + x) * 4 + 3] > 127) top20.push(x);
+  const band = Math.max(...top20) - Math.min(...top20) + 1;
+  for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) { const i = (y * a.width + x) * 4; if (a.data[i + 3] === 255 && a.data[i] === 255 && a.data[i + 1] === 255 && a.data[i + 2] === 255) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); } }
+  const fur = (x1 - x0 + 1) / band;
+  assert.ok(fur > 0.4 && fur < 0.75, `fur width / head band = ${fur}`); // 200x160 은 옆으로 넓어서 bbox 높이 50% 상한에 걸린다
+  // 옆으로 누운·넓은 그림: 모자가 bbox 높이 50% 를 넘지 않아 캔버스가 1.5배 안으로만 자란다
+  for (const [w, h] of [[300, 120], [400, 100], [200, 200]]) { const o = santaHat(blob(w, h)); assert.ok(o.height / h < 1.5, `${w}x${h} -> ${o.height}`); }
+  // 가는 귀 두 개 위에 둥근 머리: 모자는 귀 끝이 아니라 머리 윗변(y 60) 근처에
+  const eared = makeImg(120, 160, (x, y) => ((y < 60 && (Math.abs(x - 45) < 6 || Math.abs(x - 75) < 6)) || Math.hypot(x - 60, y - 110) < 50 ? [240, 220, 180, 255] : [0, 0, 0, 0]));
+  const e = santaHat(eared), ey = [];
+  for (let y = 0; y < e.height; y++) for (let x = 0; x < e.width; x++) { const i = (y * e.width + x) * 4; if (e.data[i + 3] === 255 && e.data[i] === 255 && e.data[i + 1] === 255 && e.data[i + 2] === 255) ey.push(y - e.hatTop); }
+  assert.ok(Math.max(...ey) > 55, `fur on the head, not on the ear tips (fur bottom y ${Math.max(...ey)})`);
+  assert.deepEqual([...alphasOf(santaHat(pixelize(img, 32), { binary: true }))].sort((p, q) => p - q), [0, 255], 'sprite stays 0/255');
+  const empty = makeImg(4, 4, () => [0, 0, 0, 0]);
+  assert.equal(santaHat(empty), empty);
+  assert.equal(hatAt(0.5, 0.85), '#FFFFFF'); assert.equal(hatAt(0.45, 0.5), '#D2364A'); assert.equal(hatAt(0.02, 0.02), null);
+});
+
+test('xmas decos: snowflake / holly / santa-hat draw (round + pixel), pixel alpha 0/255, bubbles stay stretch-safe', () => {
+  for (const kind of ['snowflake', 'holly', 'santa-hat']) for (const pixel of [false, true]) {
+    const im = decoImage(kind, 8, 3, pixel, PAL.accent);
+    assert.equal(im.width, 24);
+    let n = 0; for (let i = 3; i < im.data.length; i += 4) if (im.data[i]) n++;
+    assert.ok(n > 40, `${kind} pixel=${pixel}: ${n}`);
+    if (pixel) assert.deepEqual([...alphasOf(im)].sort((p, q) => p - q), [0, 255]);
+    assert.deepEqual(decoImage(kind, 8, 3, pixel, PAL.accent).data, im.data, 'deterministic');
+    const b = bubbleSpec('perch', pixel, false);
+    for (const side of ['send', 'receive']) {
+      const img = bubbleImage(b, { tail: true, selected: false, side, k: 3, pixel, deco: kind }, PAL);
+      const { X, Y } = capFor(b, side);
+      assert.deepEqual(stretchProfiles(img, X, Y, 3), { cols: 1, rows: 1 }, `${kind} ${side}`);
+    }
+  }
+  assert.ok(colorsOf(decoImage('holly', 8, 3, false, PAL.accent)).size >= 2, 'holly is two-tone');
+});
+
+test('render xmas: same bytes twice, night main header dark + light css text, snow/lights/glow differ, hat lands on profile & bubbles, peek keeps the face', { timeout: 120000 }, async t => {
+  const pg = await page();
+  if (!pg) return t.skip('playwright (tests/.pw) not installed');
+  const tn = TEMPLATES.find(x => x.id === 'xmas-night');
+  const opts = { ...tn.opts, background: tn.bg, id: 'a1b2c3d4e5f6' };
+  const R = hexRgb('#D2364A');
+  const probes = [{ file: 'mainBgImage@3x.png', at: [560, 100] }, { file: 'profileImg01@3x.png', find: R }, { file: 'chatroomBubbleSend01@3x.png', find: R },
+    { file: 'passcodeBgImage@3x.png', at: [600, 100] }];
+  const r1 = await buildProbe(pg, { char: ['jelly', 'hotteok'], opts, probes }), r2 = await buildProbe(pg, { char: ['jelly', 'hotteok'], opts, probes });
+  assert.deepEqual(r1.hashes, r2.hashes, 'deterministic');
+  const L = c => rgbToOklch(c.slice(0, 3))[0];
+  assert.ok(L(r1.probes[0]) < 0.4 && L(r1.probes[3]) < 0.4, `night sky dark ${r1.probes[0]} ${r1.probes[3]}`);
+  assert.ok(r1.probes[1].n > 200 && r1.probes[2].n > 20, 'hat on profile + bubble');
+  assert.ok(r1.probes[1].box[1] < 120, 'hat at the top of the profile');
+  const bt = r1.meta.bgText;
+  assert.ok(bt.main.dark && bt.passcode.dark && !('chat' in bt));
+  assert.ok(contrast(bt.main.text, '#1B2340') >= 4.5);
+  const css = await pg.evaluate(async o => (await E.buildTheme(window.CH.jelly, null, o)).css, opts);
+  assert.match(css, new RegExp(`LabelStyle-PasscodeTitle \\{ -ios-text-color: ${bt.passcode.text}; \\}`));
+  // 사진이 있으면 헤이즈 대신 사진이라 글자색 교체 없음
+  const ph = await buildProbe(pg, { opts, assets: { bgMain: { grad: [60, 120] } } });
+  assert.ok(!ph.meta.bgText.main && ph.meta.bgText.passcode);
+  // 무늬·헤이즈 그림이 서로 다름 (구석 그림 없이)
+  const hs = new Set();
+  for (const background of [{ pattern: 'snow' }, { pattern: 'xmas-lights' }, { pattern: 'snow+xmas-lights' }, { pattern: 'none', haze: { main: 'snow-night' } }, { pattern: 'none', haze: { main: 'xmas-glow' } }, { pattern: 'none' }]) {
+    const r = await buildProbe(pg, { opts: { id: 'a1b2c3d4e5f6', background: { ...background, corner: { main: 'none', chat: 'none' } } } });
+    hs.add(r.hashes['Images/mainBgImage@3x.png']);
+  }
+  assert.equal(hs.size, 6);
+  // 빼꼼 + 모자: 모자 없는 빼꼼보다 그림이 커지지 않고 (같은 상자) 모자 빨강이 보인다
+  const ts = TEMPLATES.find(x => x.id === 'xmas-sticky');
+  const rs = await buildProbe(pg, { char: ['jelly', 'hotteok'], opts: { ...ts.opts, background: ts.bg, id: 'a1b2c3d4e5f6' }, probes: [{ file: 'chatroomBubbleSend01@3x.png', find: R }, { file: 'chatroomBubbleSend02@3x.png', find: R }] });
+  assert.ok(rs.probes[0].n > 10 && rs.probes[1].n > 3, 'hat on 01 peek and 02 peek');
+  // 커플 + xmas + keypadTone char: 키패드 = 단일 빌드와 같은 캐릭터 색 (미리 칠한 빨강 파스텔 아님)
+  const kp = await pg.evaluate(async o => {
+    globalThis.JSZip = class { constructor() { this.files = new Map(); } file(p, d) { this.files.set(p, d); } async generateAsync() { return this.files; } };
+    const k = css => css.match(/-ios-keypad-background-color: (#[0-9A-F]{6})/i)[1];
+    const one = k((await E.buildTheme(window.CH.jelly, window.CH.hotteok, o)).css);
+    const pair = await E.buildCouple(window.CH.jelly, window.CH.hotteok, o);
+    const two = await Promise.all(pair.map(async p => k(await p.blob.get('KakaoTalkTheme.css').text())));
+    delete globalThis.JSZip;
+    return [one, ...two];
+  }, { ...ts.opts, background: ts.bg, id: 'a1b2c3d4e5f6' });
+  assert.deepEqual([kp[1], kp[2]], [kp[0], kp[0]], `couple keypad ${kp}`);
+  assert.ok(!rs.meta.bgText.main.dark);
+});
